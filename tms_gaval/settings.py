@@ -26,44 +26,29 @@ SHARED_APPS = [
     'django_tenants',
     'tenants',  # Tu app para los modelos de tenant (Empresa, Domain)
 
-    # Apps de Django que son COMPARTIDAS (globales) y VIVEN EN EL ESQUEMA PUBLIC
-    # Sus tablas solo existen en el esquema 'public'.
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes', # contenttypes también suele ser compartido para Foreign Keys
-    'django.contrib.sessions',
-    'django.contrib.messages',
+    # Apps que REALMENTE son GLOBALES
     'django.contrib.staticfiles',
     'django.contrib.humanize',
-    # ¡IMPORTANTE! 'flota' y 'cuentas' NO VAN AQUÍ si son por tenant.
+    # ¡IMPORTANTE! Las apps de AUTH y ADMIN NO van aquí. Se mueven a TENANT_APPS.
 ]
 
 TENANT_APPS = [
     # Las apps que son ESPECÍFICAS de CADA TENANT.
     # Sus tablas se crean y gestionan de forma independiente en cada esquema de tenant.
-    # Aquí es donde deben estar 'flota' y 'cuentas' para el modelo multi-tenant.
+    # Aquí van las apps de AUTENTICACIÓN, ADMIN y MENSAJES para que cada tenant tenga las suyas.
+    'django.contrib.admin',        # Admin por tenant
+    'django.contrib.auth',         # Autenticación por tenant (usuarios, grupos, permisos)
+    'django.contrib.contenttypes', # Contenttypes por tenant (necesario para auth)
+    'django.contrib.sessions',     # Sesiones por tenant
+    'django.contrib.messages',     # Mensajes por tenant
     
     # Tus APPS ESPECÍFICAS de NEGOCIO (para cada tenant)
     'flota',
     'cuentas',
 ]
 
-# Esta línea es correcta y así es como django-tenants las usa internamente.
-# Asegura que INSTALLED_APPS contenga todas las apps sin duplicados.
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
-# ====================================================================
-
-
-# =================== DEBUG: VERIFICACIÓN FINAL DE APPS ===================
-print("--- DEBUG: VERIFICANDO LISTAS DE APPS CARGADAS ---")
-print(f"DEBUG: SHARED_APPS_CARGADAS  = {SHARED_APPS}")
-print(f"DEBUG: TENANT_APPS_CARGADAS = {TENANT_APPS}")
-print("--------------------------------------------------")
-# =========================================================================
-
-
-# --- MIDDLEWARE ---
 
 MIDDLEWARE = [
     'django_tenants.middleware.main.TenantMainMiddleware', # Debe estar al principio
@@ -128,7 +113,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',       
                 # Importante: El context processor de 'flota' debe eliminarse si 'flota' es TENANT_APP
                 # ya que intentaría consultar tablas que no existen en el esquema 'public'.
-                # 'flota.context_processors.notificaciones_processor', # <-- ASEGÚRATE DE QUE ESTÉ COMENTADO O ELIMINADO
+                'flota.context_processors.notificaciones_processor', # <-- ASEGÚRATE DE QUE ESTÉ COMENTADO O ELIMINADO
             ],
         },
     },
