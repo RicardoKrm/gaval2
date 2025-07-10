@@ -1,0 +1,72 @@
+{% extends "flota/base.html" %}
+
+{% comment %} ELIMINADO: Todo el bloque extra_head. Ya no es necesario. {% endcomment %}
+
+{% block title %}Historial de {{ vehiculo.numero_interno }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- RECONSTRUIDO: Encabezado de la página -->
+    <div class="flex flex-wrap justify-between items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-text-primary">Historial de Mantenimiento</h1>
+            <p class="text-lg text-text-secondary mt-1">Vehículo: {{ vehiculo.numero_interno }} ({{ vehiculo.patente }})</p>
+        </div>
+        <a href="{{ request.META.HTTP_REFERER|default:'ot_list' }}" class="btn-primary !bg-gray-500 hover:!bg-gray-600">
+            <i class="fas fa-arrow-left mr-2"></i>Volver
+        </a>
+    </div>
+
+    <!-- RECONSTRUIDO: Tarjeta contenedora de la tabla -->
+    <div class="card-style overflow-x-auto">
+        <table class="w-full text-sm text-left text-text-secondary">
+            <thead class="text-xs text-text-secondary uppercase bg-bg-secondary">
+                <tr>
+                    <th class="px-6 py-3">Folio</th>
+                    <th class="px-6 py-3">Tipo</th>
+                    <th class="px-6 py-3">Prioridad</th>
+                    <th class="px-6 py-3">Estado</th>
+                    <th class="px-6 py-3">Fecha Creación</th>
+                    <th class="px-6 py-3">Fecha Cierre</th>
+                    <th class="px-6 py-3">Costo Total</th>
+                    <th class="px-6 py-3 text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ot in ordenes %}
+                <tr class="bg-card-base-bg border-b border-input-border hover:bg-bg-secondary">
+                    <td class="px-6 py-4 font-medium text-text-primary whitespace-nowrap">{{ ot.folio }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ ot.get_tipo_display }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ ot.get_prioridad_display }}</td>
+                    <td class="px-6 py-4">
+                        <!-- REUTILIZADO: Badges de estado consistentes -->
+                        <span class="inline-block px-3 py-1 text-xs font-bold text-white rounded-full text-center min-w-[110px]
+                            {% if ot.estado == 'PENDIENTE' %}bg-yellow-500
+                            {% elif ot.estado == 'EN_PROCESO' %}bg-blue-500
+                            {% elif ot.estado == 'PAUSADA' %}bg-orange-500
+                            {% elif ot.estado == 'CERRADA_MECANICO' %}bg-gray-500
+                            {% elif ot.estado == 'FINALIZADA' %}bg-green-600
+                            {% else %}bg-gray-400{% endif %}">
+                            {{ ot.get_estado_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ ot.fecha_creacion|date:"d/m/Y" }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ ot.fecha_cierre|date:"d/m/Y"|default:"--" }}</td>
+                    <td class="px-6 py-4 font-mono">${{ ot.costo_total|floatformat:2 }}</td>
+                    <td class="px-6 py-4 text-center">
+                        <a href="{% url 'ot_detail' pk=ot.pk %}" class="btn-primary !text-xs !py-1 !px-3" title="Ver Detalle">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-8 text-text-secondary italic">Este vehículo no tiene órdenes de trabajo registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

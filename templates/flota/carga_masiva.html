@@ -1,0 +1,417 @@
+{% extends "flota/base.html" %}
+{% load static %}
+
+{% block title %}Carga Masiva de Datos - Pulser{% endblock %}
+
+{% block extra_head %}
+    {# Las variables CSS y estilos generales del body DEBEN estar en base.html #}
+    {# Si esta página necesita SOBREESCRIBIR alguna variable específica, SÓLO esa variable debería ir aquí. #}
+    {# He incluido un conjunto básico de estilos para las clases que pareces usar aquí #}
+    {# Asegúrate de que 'base.html' tenga la definición global de tus variables de color y estilos base #}
+    <style>
+        /* Contenedor principal de la página */
+        .page-container {
+            padding: 2.5rem 1.5rem;
+            max-width: 900px; /* Ancho un poco más amplio para este formulario */
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* Encabezado del formulario */
+        .page-header-main-form {
+            background: linear-gradient(135deg, var(--header-gradient-start, #e0e7ff) 0%, var(--header-gradient-end, #c7d2fe) 100%);
+            padding: 2rem 2.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 2.5rem;
+            box-shadow: var(--shadow-medium, 0 20px 50px rgba(0, 0, 0, 0.15));
+            color: var(--text-primary, #1f2937); 
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .page-header-main-form h1 {
+            font-weight: 700;
+            font-size: 2.5rem;
+            margin: 0;
+            color: var(--text-primary, #1f2937); 
+            text-shadow: var(--text-shadow-subtle, none);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+        .page-header-main-form h1 i {
+            color: var(--accent, #3b82f6);
+            font-size: 2.2rem;
+        }
+        .page-header-main-form p.form-description {
+            color: var(--text-secondary, #4b5563);
+            font-weight: 400;
+            font-size: 1.05rem;
+            margin-top: 0.8rem;
+            margin-bottom: 0;
+            max-width: 700px;
+        }
+
+        /* Contenedor del formulario principal */
+        .form-main-card {
+            background-color: var(--card-base-bg, #ffffff);
+            border: 1px solid var(--input-border, #d1d5db);
+            border-radius: 1rem;
+            box-shadow: var(--shadow-medium, 0 20px 50px rgba(0, 0, 0, 0.15));
+            padding: 2.5rem;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        html.light .form-main-card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+        }
+
+        /* Estilo para secciones de formulario agrupadas */
+        .form-section-group {
+            background-color: var(--input-bg, #f9fafb);
+            border: 1px solid var(--input-border, #d1d5db);
+            border-radius: 0.7rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        .form-section-group:last-of-type {
+            margin-bottom: 0;
+        }
+
+        /* Título de sección dentro del formulario */
+        .form-section-group h5 {
+            color: var(--text-primary, #1f2937);
+            font-weight: 700;
+            font-size: 1.15rem;
+            margin-top: 0; 
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--input-border, #d1d5db);
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+        .form-section-group h5 i {
+            color: var(--accent, #3b82f6);
+            font-size: 1.15rem;
+        }
+
+        /* Etiquetas de formulario */
+        .form-label-custom {
+            font-weight: 600; 
+            color: var(--text-primary, #1f2937);
+            margin-bottom: 0.8rem;
+            font-size: 1em;
+        }
+
+        /* Controles de formulario (input, select, textarea) */
+        .custom-input {
+            background-color: var(--input-bg, #ffffff); 
+            border: 1px solid var(--input-border, #d1d5db); 
+            color: var(--text-primary, #1f2937); 
+            padding: 0.9rem 1.4rem; 
+            border-radius: 0.7rem; 
+            font-size: 1.05rem;
+            height: 52px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .custom-input::placeholder { color: var(--input-placeholder, #9ca3af); }
+        .custom-input:focus {
+            outline: none;
+            border-color: var(--accent, #3b82f6);
+            box-shadow: 0 0 0 0.5rem hsla(217, 91%, 60%, 0.4);
+        }
+        input[type="number"].custom-input::-webkit-inner-spin-button,
+        input[type="number"].custom-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"].custom-input { -moz-appearance: textfield; }
+
+        /* Estilo para inputs de tipo 'file' */
+        input[type="file"].custom-input {
+            height: auto; /* Permitir que la altura se ajuste al contenido (botón de selección) */
+            padding-top: 0.5rem; /* Ajustar padding para el botón de selección de archivo */
+            padding-bottom: 0.5rem;
+        }
+        input[type="file"].custom-input::-webkit-file-upload-button {
+            background-color: var(--accent);
+            color: white; /* Color de texto del botón de archivo */
+            border: none;
+            border-radius: 0.3rem;
+            padding: 0.5rem 1rem;
+            margin-right: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+        input[type="file"].custom-input::-webkit-file-upload-button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        /* Botones de acción */
+        .button-action-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn-custom-action {
+            font-weight: 700;
+            border-radius: 0.7rem;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.8rem;
+            font-size: 1.2rem;
+            padding: 1rem 2.5rem;
+            text-decoration: none;
+            background-color: var(--success-color);
+            border: none;
+            color: var(--text-primary);
+            box-shadow: var(--shadow-light);
+        }
+        .btn-custom-action:hover {
+            background-color: color-mix(in srgb, var(--success-color) 80%, black);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-medium);
+        }
+        .btn-custom-cancel {
+            background-color: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 1.1rem;
+            padding: 0.9rem 2.2rem;
+            box-shadow: none;
+            transition: all 0.3s ease;
+        }
+        .btn-custom-cancel:hover {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        html.light .btn-custom-cancel:hover {
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+
+
+        /* Estilos para la lista de plantillas de descarga */
+        .template-list ul {
+            list-style: none;
+            padding: 0;
+            margin-top: 1.5rem;
+        }
+
+        .template-list li {
+            background-color: var(--input-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--input-border);
+            border-radius: 0.5rem;
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .template-list li:last-child {
+            margin-bottom: 0;
+        }
+
+        .template-list li:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        html.dark .template-list li:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.25);
+        }
+
+        .template-list li a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: color 0.3s ease;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .template-list li a:hover {
+            color: var(--accent-hover);
+            text-decoration: underline;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .page-container { padding: 1.5rem 0.8rem; }
+            .page-header-main-form { padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 0.75rem; }
+            .page-header-main-form h1 { font-size: 2rem; }
+            .page-header-main-form h1 i { font-size: 1.8rem; }
+            .page-header-main-form p.form-description { font-size: 0.95rem; margin-top: 0.5rem;}
+            .form-main-card { padding: 1.5rem; border-radius: 0.75rem; }
+            .form-section-group { padding: 1.2rem; margin-bottom: 1rem; border-radius: 0.75rem; }
+            .form-section-group h5 { font-size: 1.05rem; margin-bottom: 0.8rem; }
+            .form-section-group h5 i { font-size: 1em; }
+            .form-label-custom { font-size: 0.95rem; margin-bottom: 0.6rem;}
+            .custom-input { height: 48px; font-size: 1em; padding: 0.8rem 1.2rem;}
+            input[type="file"].custom-input { padding-top: 0.4rem; padding-bottom: 0.4rem; }
+            input[type="file"].custom-input::-webkit-file-upload-button { padding: 0.4rem 0.8rem; }
+            .button-action-group { gap: 0.8rem; margin-top: 1.5rem; }
+            .btn-custom-action { font-size: 1.1rem; padding: 0.9rem 1.8rem; }
+            .template-list li { padding: 1rem 1rem; margin-bottom: 0.5rem; flex-direction: column; align-items: flex-start; }
+            .template-list li a { margin-top: 0.5rem; }
+        }
+
+        @media (max-width: 576px) {
+            .page-container { padding: 1rem 0.5rem; }
+            .page-header-main-form { padding: 1.2rem; margin-bottom: 1rem; border-radius: 0.5rem; }
+            .page-header-main-form h1 { font-size: 1.8rem; }
+            .page-header-main-form h1 i { font-size: 1.5rem; }
+            .page-header-main-form p.form-description { font-size: 0.9rem; margin-top: 0.5rem;}
+            .form-main-card { padding: 1.2rem; border-radius: 0.5rem; }
+            .form-section-group { padding: 1rem; margin-bottom: 0.8rem; border-radius: 0.5rem; }
+            .form-section-group h5 { font-size: 1rem; margin-bottom: 0.7rem; }
+            .form-section-group h5 i { font-size: 0.95rem; }
+            .form-label-custom { font-size: 0.9rem; margin-bottom: 0.5rem;}
+            .custom-input { height: 44px; font-size: 0.95rem; padding: 0.7rem 1rem;}
+            input[type="file"].custom-input { padding-top: 0.3rem; padding-bottom: 0.3rem; }
+            input[type="file"].custom-input::-webkit-file-upload-button { padding: 0.3rem 0.6rem; }
+            .button-action-group { gap: 0.7rem; margin-top: 1.5rem; }
+            .btn-custom-action { font-size: 1rem; padding: 0.8rem 1.5rem; }
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+    <h1 class="animate-pop-in"><i class="fas fa-file-import mr-3"></i> Carga Masiva de Datos</h1>
+    <p class="form-description animate-pop-in">
+        Utilice esta sección para cargar grandes volúmenes de datos mediante archivos Excel.
+        Asegúrese de usar las plantillas proporcionadas para evitar errores de formato.
+    </p>
+
+    <div class="section-card card-style animate-pop-in">
+        <h2><i class="fas fa-upload mr-2"></i> Subir Archivos</h2>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {# Renderiza cada campo de archivo individualmente para control de layout #}
+                <div class="form-group-custom">
+                    <label for="{{ form.archivo_vehiculos.id_for_label }}" class="form-label-custom">{{ form.archivo_vehiculos.label }}:</label>
+                    {{ form.archivo_vehiculos }}
+                    {% if form.archivo_vehiculos.errors %}<div class="alert-error">{{ form.archivo_vehiculos.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group-custom">
+                    <label for="{{ form.archivo_pautas.id_for_label }}" class="form-label-custom">{{ form.archivo_pautas.label }}:</label>
+                    {{ form.archivo_pautas }}
+                    {% if form.archivo_pautas.errors %}<div class="alert-error">{{ form.archivo_pautas.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group-custom">
+                    <label for="{{ form.archivo_repuestos.id_for_label }}" class="form-label-custom">{{ form.archivo_repuestos.label }}:</label>
+                    {{ form.archivo_repuestos }}
+                    {% if form.archivo_repuestos.errors %}<div class="alert-error">{{ form.archivo_repuestos.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group-custom">
+                    <label for="{{ form.archivo_historial_mantenimiento.id_for_label }}" class="form-label-custom">{{ form.archivo_historial_mantenimiento.label }}:</label>
+                    {{ form.archivo_historial_mantenimiento }}
+                    {% if form.archivo_historial_mantenimiento.errors %}<div class="alert-error">{{ form.archivo_historial_mantenimiento.errors }}</div>{% endif %}
+                </div>
+                <div class="form-group-custom">
+                    <label for="{{ form.archivo_bitacoras_diarias.id_for_label }}" class="form-label-custom">{{ form.archivo_bitacoras_diarias.label }}:</label>
+                    {{ form.archivo_bitacoras_diarias }}
+                    {% if form.archivo_bitacoras_diarias.errors %}<div class="alert-error">{{ form.archivo_bitacoras_diarias.errors }}</div>{% endif %}
+                </div>
+            </div>
+            
+            <div class="button-action-group">
+                <button type="submit" class="btn-custom-action"><i class="fas fa-file-import mr-2"></i> Iniciar Carga</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="section-card card-style animate-pop-in">
+        <h2><i class="fas fa-info-circle mr-2"></i> Instrucciones y Plantillas</h2>
+        <p>Asegúrate de que tus archivos Excel sigan el formato correcto. Puedes descargar las plantillas aquí:</p>
+        <div class="template-list">
+            <ul>
+                <li>
+                    <span>Plantilla para Vehículos</span>
+                    <a href="{% static 'plantillas/plantilla_vehiculos.xlsx' %}" download>
+                        <i class="fas fa-download"></i> Descargar
+                    </a>
+                </li>
+                <li>
+                    <span>Plantilla para Pautas de Mantenimiento</span>
+                    <a href="{% static 'plantillas/plantilla_pautas.xlsx' %}" download>
+                        <i class="fas fa-download"></i> Descargar
+                    </a>
+                </li>
+                <li>
+                    <span>Plantilla para Inventario de Repuestos</span>
+                    <a href="{% static 'plantillas/plantilla_inventario_repuestos.xlsx' %}" download>
+                        <i class="fas fa-download"></i> Descargar
+                    </a>
+                </li>
+                <li>
+                    <span>Plantilla para Historial de OTs Finalizadas</span>
+                    <a href="{% static 'plantillas/plantilla_historial_ots.xlsx' %}" download>
+                        <i class="fas fa-download"></i> Descargar
+                    </a>
+                </li>
+                <li>
+                    <span>Plantilla para Bitácoras Diarias</span>
+                    <a href="{% static 'plantillas/plantilla_bitacoras_diarias.xlsx' %}" download>
+                        <i class="fas fa-download"></i> Descargar
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+    {{ block.super }}
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Animación pop-in para las secciones
+        const animateElements = document.querySelectorAll('.animate-pop-in');
+        animateElements.forEach((el, index) => {
+            el.style.animationDelay = `${index * 0.1}s`;
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(20px)';
+        });
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.1 });
+
+        animateElements.forEach(element => {
+            observer.observe(element);
+        });
+    });
+    </script>
+{% endblock %}
