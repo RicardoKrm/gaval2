@@ -143,9 +143,9 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 # --- AUTENTICACIÓN Y REDIRECCIONES ---
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-LOGIN_URL = 'login'
+LOGIN_URL = 'tenant_login'
 LOGIN_REDIRECT_URL = 'dashboard'
-LOGOUT_REDIRECT_URL = 'login'
+LOGOUT_REDIRECT_URL = 'tenant_login'
 
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',

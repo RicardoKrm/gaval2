@@ -446,3 +446,13 @@ class UsuarioEdicionForm(forms.Form):
         label="Rol del Usuario",
         widget=forms.Select(attrs={'class': 'custom-input select2'}) # CAMBIO AQUÍ (y select2)
     )
+
+class TenantLoginForm(forms.Form):
+    # Campo para el identificador de la empresa (el subdominio)
+    tenant_identifier = forms.CharField(
+        label='Identificador de Empresa',
+        max_length=100,
+        help_text='Ejemplo: "pulser" si tu dirección es pulser.pulser.cl' # Ajusta este help_text para tus clientes
+    )
+    username = forms.CharField(label='Nombre de Usuario', max_length=150)
+    password = forms.CharField(label='Contraseña', widget=forms.PasswordInput)
