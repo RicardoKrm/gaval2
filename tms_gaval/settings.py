@@ -142,3 +142,5 @@ LOGOUT_REDIRECT_URL = 'tenant_login' # Redirige al login después de logout
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+TENANT_MIGRATION_EXECUTOR = 'django_tenants.migration_executors.schema_and_public.run_migrations'
