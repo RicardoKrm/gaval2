@@ -76,17 +76,6 @@ TENANT_MODEL = "tenants.Empresa"
 TENANT_DOMAIN_MODEL = "tenants.Domain"
 
 
-# =================== BLOQUE DE DEPURACIÓN (DEBUGGING) ===================
-# Vamos a imprimir las variables para ver exactamente qué está leyendo Django
-# (Estos prints solo aparecerán en desarrollo, no en Render si DEBUG es False)
-print("--- DEBUG: LEYENDO VARIABLES DE ENTORNO ---")
-print(f"DEBUG: DB_NAME    = '{os.getenv('DB_NAME')}'")
-print(f"DEBUG: DB_USER    = '{os.getenv('DB_USER')}'")
-print(f"DEBUG: DB_PASSWORD = '{os.getenv('DB_PASSWORD')}'")
-print(f"DEBUG: DB_HOST    = '{os.getenv('DB_HOST')}'")
-print(f"DEBUG: DB_PORT    = '{os.getenv('DB_PORT')}'")
-print("---------------------------------------------")
-# ========================================================================
 
 
 # --- BASE DE DATOS ---
