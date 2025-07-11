@@ -8,7 +8,7 @@ echo "--- Iniciando script de despliegue ---"
 # CRÍTICO: Cargar variables de entorno desde .env
 echo "Cargando variables de entorno desde .env..."
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | xargs)
+    source .env
     echo ".env cargado."
 else
     echo "Advertencia: .env no encontrado. Asegúrate de que las variables de entorno estén configuradas."
@@ -24,7 +24,9 @@ python manage.py collectstatic --noinput
 
 # 3. Aplicar migraciones para el esquema public
 echo "Aplicando migraciones para el esquema 'public'..."
-python manage.py migrate --schema=public --noinput # <--- ESTE ES EL COMANDO CRÍTICO
+# El comando que causaba problemas era public_schema_only. Volvamos al migrate estándar
+# que ahora debería funcionar con psycopg2-binary 2.9.6 y el engine explícito.
+python manage.py migrate --schema=public --noinput # <--- ¡ESTE ES EL COMANDO!
 
 # 4. Crear el superusuario GLOBAL 'gaval' de forma no interactiva si no existe
 echo "Creando/actualizando superusuario 'gaval'..."
