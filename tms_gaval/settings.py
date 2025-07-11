@@ -5,14 +5,22 @@ from pathlib import Path
 import locale
 from dotenv import load_dotenv
 import dj_database_url # Para parsear la URL de la base de datos de Hostinger
-import tms_gaval.db_patch
+
+# IMPORTANTE: Parche para la compatibilidad de django-tenants con set_schema
+import tms_gaval.db_patch # <--- Esta línea debe ir aquí, antes de cualquier uso de la DB
+
+
+# --- DEFINICIÓN DE BASE_DIR (¡CRÍTICO! Definir al principio) ---
+BASE_DIR = Path(__file__).resolve().parent.parent
+# --- FIN DEFINICIÓN DE BASE_DIR ---
+
 
 # Carga las variables de entorno desde el archivo .env
-load_dotenv()
+# ¡CRÍTICO! Carga el archivo .env explicitamente desde la BASE_DIR
+load_dotenv(dotenv_path=os.path.join(BASE_DIR, '.env'))
+
 
 # --- CONFIGURACIÓN BASE ---
-
-BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Lee la SECRET_KEY y el modo DEBUG desde el archivo .env
 # ¡CRÍTICO PARA SEGURIDAD en producción! Deben ser variables de entorno en Hostinger.
@@ -22,7 +30,8 @@ DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
 # ALLOWED_HOSTS: ¡CRÍTICO PARA SEGURIDAD en producción!
 # Permitirá tu dominio real (ej. pulser.cl y *.pulser.cl)
 # En desarrollo, '*' es seguro si DEBUG es True.
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',') # <--- Lee de ENV para flexibilidad
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+
 
 # ====================================================================
 # *** CONFIGURACIÓN DEFINITIVA DE SHARED_APPS y TENANT_APPS ***
@@ -89,16 +98,14 @@ print(f"DEBUG: DB_PORT    = '{os.getenv('DB_PORT')}'")
 print("---------------------------------------------")
 # ========================================================================
 
-
 # --- BASE DE DATOS ---
-# Usa dj_database_url para parsear la DATABASE_URL (Hostinger la proporcionará)
 DATABASES = {
     'default': {
-        **dj_database_url.parse( # <-- ¡CAMBIO CLAVE AQUÍ! Usamos parse y descomprimimos
+        **dj_database_url.parse( # <--- ¡CLAVE! Usa parse para descomprimir la URL
             os.getenv('DATABASE_URL', 'postgresql://gaval:Karma627@localhost:5432/gavaldb_utf8'),
-            conn_max_age=600 # Puedes dejarlo o quitarlo si parse no lo soporta directamente, pero suele funcionar
+            conn_max_age=600 # Reutiliza conexiones a la DB por hasta 10 minutos
         ),
-        'ENGINE': 'django_tenants.postgresql_backend',  # <--- ¡FORZAMOS EL ENGINE MANUALMENTE!
+        'ENGINE': 'django_tenants.postgresql_backend',  # <--- ¡FUERZA EL ENGINE CORRECTO!
     }
 }
 
