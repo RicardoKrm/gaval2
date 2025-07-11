@@ -93,12 +93,13 @@ print("---------------------------------------------")
 # --- BASE DE DATOS ---
 # Usa dj_database_url para parsear la DATABASE_URL (Hostinger la proporcionará)
 DATABASES = {
-    'default': dj_database_url.config(
-        # ¡CRÍTICO! El motor debe ser explícitamente el de django-tenants.
-        engine='django_tenants.postgresql_backend', # <--- ¡AÑADE ESTA LÍNEA!
-        default=os.getenv('DATABASE_URL', 'postgresql://gaval:Karma627@localhost:5432/gavaldb_utf8'),
-        conn_max_age=600
-    )
+    'default': {
+        **dj_database_url.parse( # <-- ¡CAMBIO CLAVE AQUÍ! Usamos parse y descomprimimos
+            os.getenv('DATABASE_URL', 'postgresql://gaval:Karma627@localhost:5432/gavaldb_utf8'),
+            conn_max_age=600 # Puedes dejarlo o quitarlo si parse no lo soporta directamente, pero suele funcionar
+        ),
+        'ENGINE': 'django_tenants.postgresql_backend',  # <--- ¡FORZAMOS EL ENGINE MANUALMENTE!
+    }
 }
 
 # Router de base de datos para django-tenants (sin cambios)
