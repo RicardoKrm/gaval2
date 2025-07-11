@@ -7,13 +7,8 @@ from dotenv import load_dotenv
 import dj_database_url 
 
 
-# --- DEFINICIÓN DE BASE_DIR (¡CRÍTICO! Definir al principio) ---
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-# --- FIN DEFINICIÓN DE BASE_DIR ---
-
-
-# Carga las variables de entorno desde el archivo .env
-# ¡CRÍTICO! Carga el archivo .env explicitamente desde la BASE_DIR
 load_dotenv(dotenv_path=os.path.join(BASE_DIR, '.env'))
 
 
@@ -86,17 +81,16 @@ TENANT_DOMAIN_MODEL = "tenants.Domain"    # Tu modelo personalizado de dominio
 
 
 
-# --- BASE DE DATOS ---
 DATABASES = {
     'default': {
-        **dj_database_url.parse( # <--- ¡CLAVE! Usa parse para descomprimir la URL
+        # ¡CRÍTICO! Usar parse y descomprimir, y forzar el ENGINE.
+        **dj_database_url.parse(
             os.getenv('DATABASE_URL', 'postgresql://gaval:Karma627@localhost:5432/gavaldb_utf8'),
-            conn_max_age=600 # Reutiliza conexiones a la DB por hasta 10 minutos
+            conn_max_age=600 # Asegúrate de que esto es compatible con dj_database_url.parse
         ),
-        'ENGINE': 'django_tenants.postgresql_backend',  # <--- ¡FUERZA EL ENGINE CORRECTO!
+        'ENGINE': 'django_tenants.postgresql_backend', # <--- ¡Aquí se fuerza correctamente!
     }
 }
-
 import tms_gaval.db_patch 
 
 

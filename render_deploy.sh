@@ -5,14 +5,9 @@ set -o errexit
 
 echo "--- Iniciando script de despliegue ---"
 
-# CRÍTICO: Cargar variables de entorno desde .env
-echo "Cargando variables de entorno desde .env..."
-if [ -f .env ]; then
-    source .env
-    echo ".env cargado."
-else
-    echo "Advertencia: .env no encontrado. Asegúrate de que las variables de entorno estén configuradas."
-fi
+# CRÍTICO: Cargar variables de entorno desde .env (lo hará settings.py)
+echo "Cargando variables de entorno desde .env (a través de settings.py)..."
+# No necesitas `export $(grep ...)` aquí, ya que settings.py lo maneja.
 
 # 1. Instalar dependencias
 echo "Instalando dependencias de Python..."
@@ -23,10 +18,9 @@ echo "Recolectando archivos estáticos..."
 python manage.py collectstatic --noinput
 
 # 3. Aplicar migraciones para el esquema public
-echo "Aplicando migraciones para el esquema 'public'..."
-# El comando que causaba problemas era public_schema_only. Volvamos al migrate estándar
-# que ahora debería funcionar con psycopg2-binary 2.9.6 y el engine explícito.
-python manage.py migrate --schema=public --noinput # <--- ¡ESTE ES EL COMANDO!
+# ¡CRÍTICO! Usar el comando correcto de django-tenants para migraciones compartidas
+echo "Aplicando migraciones para el esquema 'public' usando migrate_schemas --shared..."
+python manage.py migrate_schemas --shared --noinput # <--- ¡CAMBIO CRÍTICO AQUÍ!
 
 # 4. Crear el superusuario GLOBAL 'gaval' de forma no interactiva si no existe
 echo "Creando/actualizando superusuario 'gaval'..."
