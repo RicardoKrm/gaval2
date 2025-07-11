@@ -4,10 +4,7 @@ import os
 from pathlib import Path
 import locale
 from dotenv import load_dotenv
-import dj_database_url # Para parsear la URL de la base de datos de Hostinger
-
-# IMPORTANTE: Parche para la compatibilidad de django-tenants con set_schema
-import tms_gaval.db_patch # <--- Esta línea debe ir aquí, antes de cualquier uso de la DB
+import dj_database_url 
 
 
 # --- DEFINICIÓN DE BASE_DIR (¡CRÍTICO! Definir al principio) ---
@@ -87,16 +84,7 @@ ROOT_URLCONF = 'tms_gaval.urls' # Ajusta 'tms_gaval' al nombre de tu carpeta de 
 TENANT_MODEL = "tenants.Empresa"          # Tu modelo personalizado de tenant
 TENANT_DOMAIN_MODEL = "tenants.Domain"    # Tu modelo personalizado de dominio
 
-# =================== BLOQUE DE DEPURACIÓN (DEBUGGING) ===================
-# Estos prints solo aparecerán en desarrollo (si DEBUG es True), no en producción.
-print("--- DEBUG: LEYENDO VARIABLES DE ENTORNO ---")
-print(f"DEBUG: DB_NAME    = '{os.getenv('DB_NAME')}'")
-print(f"DEBUG: DB_USER    = '{os.getenv('DB_USER')}'")
-print(f"DEBUG: DB_PASSWORD = '{os.getenv('DB_PASSWORD')}'")
-print(f"DEBUG: DB_HOST    = '{os.getenv('DB_HOST')}'")
-print(f"DEBUG: DB_PORT    = '{os.getenv('DB_PORT')}'")
-print("---------------------------------------------")
-# ========================================================================
+
 
 # --- BASE DE DATOS ---
 DATABASES = {
@@ -108,6 +96,9 @@ DATABASES = {
         'ENGINE': 'django_tenants.postgresql_backend',  # <--- ¡FUERZA EL ENGINE CORRECTO!
     }
 }
+
+import tms_gaval.db_patch 
+
 
 # Router de base de datos para django-tenants (sin cambios)
 DATABASE_ROUTERS = (
