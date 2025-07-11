@@ -5,6 +5,7 @@ from pathlib import Path
 import locale
 from dotenv import load_dotenv
 import dj_database_url # Para parsear la URL de la base de datos de Hostinger
+import tms_gaval.db_patch
 
 # Carga las variables de entorno desde el archivo .env
 load_dotenv()
