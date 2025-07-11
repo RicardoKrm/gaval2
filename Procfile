@@ -1,0 +1,1 @@
+web: gunicorn tms_gaval.wsgi:application --log-file -
