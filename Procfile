@@ -1,1 +1,1 @@
-web: gunicorn tms_gaval.wsgi:application --log-file -
+web: python manage.py migrate --schema=public --noinput && python manage.py createsuperuser --username gaval --email admin@pulser.com --noinput || true && python manage.py shell -c "from django.contrib.auth import get_user_model; User=get_user_model(); user=User.objects.get(username='gaval'); user.set_password('pulseradmin123'); user.save()" && gunicorn tms_gaval.wsgi:application --log-file -
