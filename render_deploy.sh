@@ -9,10 +9,9 @@ pip install -r requirements.txt
 # 2. Recolectar archivos estáticos
 python manage.py collectstatic --noinput
 
-# 3. Aplicar migraciones para el esquema public (solo para las shared_apps)
-# CAMBIADO: Usamos 'migrate' estándar con --database=default para public.
-# Esto asume que tu router de DB ya sabe qué apps son compartidas.
-python manage.py migrate --database=default --noinput
+# 3. Aplicar migraciones para el esquema public
+# CAMBIADO: Usamos 'migrate --schema=public' que suele ser compatible con 2.x
+python manage.py migrate --schema=public --noinput # <--- ¡LÍNEA MODIFICADA!
 
 # 4. Crear el superusuario GLOBAL 'gaval' de forma no interactiva si no existe
 # ... (resto del script sin cambios) ...

@@ -143,4 +143,3 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-TENANT_MIGRATION_EXECUTOR = 'django_tenants.migration_executors.schema_and_public.run_migrations'
