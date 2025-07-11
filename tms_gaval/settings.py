@@ -93,10 +93,10 @@ print("---------------------------------------------")
 # Usa dj_database_url para parsear la DATABASE_URL (Hostinger la proporcionará)
 DATABASES = {
     'default': dj_database_url.config(
-        # En producción, DATABASE_URL debe ser una variable de entorno de Hostinger.
-        # Aquí se proporciona un valor por defecto para el entorno de desarrollo local.
+        # ¡CRÍTICO! El motor debe ser explícitamente el de django-tenants.
+        engine='django_tenants.postgresql_backend', # <--- ¡AÑADE ESTA LÍNEA!
         default=os.getenv('DATABASE_URL', 'postgresql://gaval:Karma627@localhost:5432/gavaldb_utf8'),
-        conn_max_age=600 # Reutiliza conexiones a la DB por hasta 10 minutos (opcional, mejora rendimiento)
+        conn_max_age=600
     )
 }
 
