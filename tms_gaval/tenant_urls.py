@@ -1,13 +1,13 @@
 # tms_gaval/tenant_urls.py
 from django.urls import path, include
 from flota import views as flota_views
+from cuentas import views as cuentas_views # Importar vistas de cuentas
 
 urlpatterns = [
-    # Dashboard principal (accesible desde el tenant, ej: pulser.localhost:8000/dashboard/)
+    # Dashboard principal
     path('dashboard/', flota_views.dashboard_flota, name='dashboard'),
 
-    # El resto de tus rutas de la aplicación 'flota' permanecen igual
-    # (Estas serán accesibles sólo cuando el dominio sea de un tenant, ej: pulser.localhost:8000/inventario/)
+    # URLs de la aplicación 'flota'
     path('api/ot-eventos/', flota_views.ot_eventos_api, name='ot_eventos_api'),
     path('inventario/', flota_views.repuesto_list, name='repuesto_list'),
     path('inventario/nuevo/', flota_views.repuesto_create, name='repuesto_create'),
@@ -37,15 +37,17 @@ urlpatterns = [
     path('ot/<int:pk>/autorizar-horas-extra/', flota_views.autorizar_horas_extra, name='autorizar_horas_extra'),
     path('notificaciones/', flota_views.lista_notificaciones, name='lista_notificaciones'),
     path('api/notificaciones/marcar-leidas/', flota_views.marcar_notificaciones_leidas, name='marcar_notificaciones_leidas'),
-    path('administracion/usuarios/', flota_views.lista_usuarios, name='lista_usuarios'),
-    path('administracion/usuarios/crear/', flota_views.crear_usuario, name='crear_usuario'),
-    path('administracion/usuarios/editar/<int:user_id>/', flota_views.editar_usuario, name='editar_usuario'),
     path('kpi-rrhh/', flota_views.kpi_rrhh_dashboard, name='kpi_rrhh_dashboard'),
     path('reportes/', flota_views.reportes_dashboard, name='reportes_dashboard'),
     path('exportar/vehiculos-csv/', flota_views.export_vehiculos_csv, name='export_vehiculos_csv'),
     path('exportar/repuestos-csv/', flota_views.export_repuestos_csv, name='export_repuestos_csv'),
     path('exportar/ots-csv/', flota_views.export_ots_csv, name='export_ots_csv'),
 
-    # Si la app 'cuentas' tiene URLs específicas de tenant, se incluirían aquí.
-    path('', include('cuentas.urls')), # Incluye las URLs de la app 'cuentas'
+    # URLs de Administración de Usuarios (ahora apuntan a cuentas.views)
+    path('administracion/usuarios/', cuentas_views.lista_usuarios, name='lista_usuarios'),
+    path('administracion/usuarios/crear/', cuentas_views.crear_usuario, name='crear_usuario'),
+    path('administracion/usuarios/editar/<int:user_id>/', cuentas_views.editar_usuario, name='editar_usuario'),
+
+    # URLs de la app 'cuentas' (login, logout, perfil)
+    path('', include('cuentas.urls')),
 ]
