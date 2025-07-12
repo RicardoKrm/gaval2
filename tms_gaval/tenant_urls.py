@@ -16,8 +16,18 @@ urlpatterns = [
     path('inventario/<int:repuesto_pk>/registrar-movimiento/', flota_views.registrar_movimiento, name='registrar_movimiento'),
     path('ordenes/', flota_views.orden_trabajo_list, name='ot_list'),
     path('ordenes/<int:pk>/', flota_views.orden_trabajo_detail, name='ot_detail'),
-    path('ordenes/<int:pk>/cambiar-estado/', flota_views.cambiar_estado_ot, name='cambiar_estado_ot'),
-    path('ordenes/<int:pk>/pdf/', flota_views.generar_ot_pdf, name='generar_ot_pdf'),
+    path('ordenes/<int:ot_pk>/pdf/', flota_views.generar_ot_pdf, name='generar_ot_pdf'),
+
+    # URLs de acciones para OT
+    path('ordenes/<int:ot_pk>/cargar-pauta/', flota_views.cargar_tareas_pauta_ot, name='cargar_tareas_pauta_ot'),
+    path('ordenes/<int:ot_pk>/pausar/', flota_views.pausar_ot, name='pausar_ot'),
+    path('ordenes/<int:ot_pk>/guardar-diagnostico/', flota_views.guardar_diagnostico_ot, name='guardar_diagnostico_ot'),
+    path('ordenes/<int:ot_pk>/asignar-tarea/', flota_views.asignar_tarea_ot, name='asignar_tarea_ot'),
+    path('ordenes/<int:ot_pk>/agregar-insumo/', flota_views.agregar_insumo_manual_ot, name='agregar_insumo_manual_ot'),
+    path('ordenes/<int:ot_pk>/asignar-personal/', flota_views.asignar_personal_ot, name='asignar_personal_ot'),
+    path('ordenes/<int:ot_pk>/cambiar-estado/', flota_views.cambiar_estado_ot_accion, name='cambiar_estado_ot'),
+    path('ordenes/<int:ot_pk>/cerrar-mecanico/', flota_views.cerrar_ot_mecanico, name='cerrar_ot_mecanico'),
+
     path('pizarra-programacion/', flota_views.pizarra_programacion, name='pizarra_programacion'),
     path('vehiculo/<int:pk>/actualizar-km/', flota_views.actualizar_km_vehiculo, name='actualizar_km'),
     path('indicadores/', flota_views.indicadores_dashboard, name='indicadores_dashboard'),
