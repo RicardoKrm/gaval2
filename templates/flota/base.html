@@ -369,17 +369,14 @@
 
             // Cerrar TODOS los popups (usuario, notificaciones, y navegación) al hacer clic fuera
             $(document).on('click', function(event) {
-                if (!$(event.target).closest('#notification-bell-wrapper').length && 
-                    !$(event.target).closest('#user-menu-wrapper').length &&
-                    !$(event.target).closest('.relative.inline-block.text-left').length // Para los nuevos dropdowns
-                ) {
-                    $('#notification-popup').addClass('hidden');
-                    $('#user-menu-popup').addClass('hidden');
-                    // Cerrar los nuevos dropdowns de navegación también
-                    document.querySelectorAll('.absolute.hidden.bg-\\[var\\(--card-base-bg\\]\\]').forEach(dropdown => {
-                        dropdown.classList.add('hidden');
-                    });
+                if (!$(event.target).closest('#notification-bell-wrapper, #user-menu-wrapper, .relative.inline-block.text-left').length) {
+                    $('#notification-popup, #user-menu-popup, .absolute.hidden.bg-\\[var\\(--card-base-bg\\]\\]').addClass('hidden');
                 }
+            });
+
+            // AÑADIDO: Cerrar dropdown al hacer clic en un item
+            $('.nav-dropdown-item').on('click', function() {
+                $(this).closest('.absolute.hidden.bg-\\[var\\(--card-base-bg\\]\\]').addClass('hidden');
             });
 
             // Lógica para marcar notificaciones como leídas (sin cambios funcionales)
