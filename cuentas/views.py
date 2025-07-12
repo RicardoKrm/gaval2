@@ -14,8 +14,5 @@ def perfil_view(request):
     context = {
         'user': request.user
     }
-    # Le decimos a Django que busque el template en 'accounts/perfil.html'
-    # Esto es porque tu app_name es 'accounts'. Django a menudo organiza
-    # los templates en subcarpetas con el nombre de la app para evitar colisiones.
-    # Vamos a seguir esta convención.
-    return render(request, 'accounts/perfil.html', context)
+    # Le decimos a Django que busque el template en 'cuentas/perfil.html'
+    return render(request, 'cuentas/perfil.html', context)
