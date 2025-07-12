@@ -12,10 +12,7 @@ class Empresa(TenantMixin):
         return self.nombre
 
 class Domain(DomainMixin):
-    # Aunque no usaremos subdominios, la librería necesita este modelo.
-    # El dominio aquí será 'localhost' para el tenant público.
+    # Modelo para asociar dominios/subdominios a un tenant.
+    # Ej: 'cliente1.gaval.com', 'cliente2.gaval.com'
     pass
-
-
-from django.contrib.auth import authenticate
 

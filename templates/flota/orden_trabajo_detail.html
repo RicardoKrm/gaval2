@@ -90,7 +90,7 @@
                 </div>
                 <div class="accordion-content">
                     <div class="p-4 border-t border-input-border">
-                        {% if ot.pauta_mantenimiento %}<p class="text-sm text-text-secondary mb-3">Asociada a: <strong>{{ ot.pauta_mantenimiento.nombre }}</strong></p><form method="post">{% csrf_token %}<button type="submit" name="cargar_tareas_pauta" class="btn-primary w-full justify-center">Cargar Tareas</button></form>{% else %}<p class="text-sm text-yellow-400 italic">No hay pauta.</p>{% endif %}
+                        {% if ot.pauta_mantenimiento %}<p class="text-sm text-text-secondary mb-3">Asociada a: <strong>{{ ot.pauta_mantenimiento.nombre }}</strong></p><form action="{% url 'cargar_tareas_pauta_ot' ot.pk %}" method="post">{% csrf_token %}<button type="submit" class="btn-primary w-full justify-center">Cargar Tareas</button></form>{% else %}<p class="text-sm text-yellow-400 italic">No hay pauta.</p>{% endif %}
                     </div>
                 </div>
             </div>
@@ -104,7 +104,7 @@
                 </div>
                 <div class="accordion-content">
                     <div class="p-4 border-t border-input-border">
-                        <form method="post" class="space-y-3">{% csrf_token %}<div><label for="{{ asignar_tarea_form.tarea.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ asignar_tarea_form.tarea.label }}</label>{{ asignar_tarea_form.tarea }}</div><button type="submit" name="asignar_tarea_existente" class="btn-primary w-full justify-center"><i class="fas fa-plus-circle mr-2"></i>Añadir</button></form>
+                        <form action="{% url 'asignar_tarea_ot' ot.pk %}" method="post" class="space-y-3">{% csrf_token %}<div><label for="{{ asignar_tarea_form.tarea.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ asignar_tarea_form.tarea.label }}</label>{{ asignar_tarea_form.tarea }}</div><button type="submit" class="btn-primary w-full justify-center"><i class="fas fa-plus-circle mr-2"></i>Añadir</button></form>
                     </div>
                 </div>
             </div>
@@ -120,7 +120,7 @@
                         <button type="button" class="btn-primary w-full justify-center mb-4" onclick="openModal('modalBuscarRepuesto')"><i class="fas fa-search mr-2"></i>Buscar Repuesto</button>
                         <hr class="border-input-border">
                         <h5 class="text-base font-semibold my-3">Registrar Insumo Manual</h5>
-                        <form method="post" class="space-y-3">{% csrf_token %}<div><label class="block text-sm font-medium text-text-secondary">{{ manual_insumo_form.nombre.label }}</label>{{ manual_insumo_form.nombre }}</div><div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium text-text-secondary">{{ manual_insumo_form.cantidad.label }}</label>{{ manual_insumo_form.cantidad }}</div><div><label class="block text-sm font-medium text-text-secondary">{{ manual_insumo_form.precio_unitario.label }}</label>{{ manual_insumo_form.precio_unitario }}</div></div><button type="submit" name="add_manual_insumo" class="btn-primary !bg-green-600 hover:!bg-green-700 w-full justify-center">Guardar Insumo</button></form>
+                        <form action="{% url 'agregar_insumo_manual_ot' ot.pk %}" method="post" class="space-y-3">{% csrf_token %}<div><label class="block text-sm font-medium text-text-secondary">{{ manual_insumo_form.nombre.label }}</label>{{ manual_insumo_form.nombre }}</div><div class="grid grid-cols-2 gap-3"><div><label class="block text-sm font-medium text-text-secondary">{{ manual_insumo_form.cantidad.label }}</label>{{ manual_insumo_form.cantidad }}</div><div><label class="block text-sm font-medium text-text-secondary">{{ manual_insumo_form.precio_unitario.label }}</label>{{ manual_insumo_form.precio_unitario }}</div></div><button type="submit" class="btn-primary !bg-green-600 hover:!bg-green-700 w-full justify-center">Guardar Insumo</button></form>
                     </div>
                 </div>
             </div>
@@ -136,7 +136,7 @@
                         {% if ot.responsable or ot.personal_asignado.all %}<ul class="text-sm space-y-1 mb-4">{% if ot.responsable %}<li><span class="font-bold text-yellow-400">Responsable:</span> {{ ot.responsable.get_full_name|default:ot.responsable.username }}</li>{% endif %}{% for ayudante in ot.personal_asignado.all %}{% if ayudante != ot.responsable %}<li><span class="font-bold text-text-secondary">Ayudante:</span> {{ ayudante.get_full_name|default:ayudante.username }}</li>{% endif %}{% endfor %}</ul>{% else %}<p class="text-sm text-text-secondary italic mb-4">No hay personal asignado.</p>{% endif %}
                         <hr class="border-input-border">
                         <h5 class="text-base font-semibold my-3">Modificar Asignación</h5>
-                        <form method="post" class="space-y-3">{% csrf_token %}<div><label class="block text-sm font-medium text-text-secondary">{{ asignar_form.responsable.label }}</label>{{ asignar_form.responsable }}</div><div><label class="block text-sm font-medium text-text-secondary">{{ asignar_form.personal_asignado.label }}</label>{{ asignar_form.personal_asignado }}</div><button type="submit" name="asignar_personal" class="btn-primary w-full justify-center"><i class="fas fa-save mr-2"></i>Guardar</button></form>
+                        <form action="{% url 'asignar_personal_ot' ot.pk %}" method="post" class="space-y-3">{% csrf_token %}<div><label class="block text-sm font-medium text-text-secondary">{{ asignar_form.responsable.label }}</label>{{ asignar_form.responsable }}</div><div><label class="block text-sm font-medium text-text-secondary">{{ asignar_form.personal_asignado.label }}</label>{{ asignar_form.personal_asignado }}</div><button type="submit" class="btn-primary w-full justify-center"><i class="fas fa-save mr-2"></i>Guardar</button></form>
                     </div>
                 </div>
             </div>
@@ -149,7 +149,7 @@
                 </div>
                 <div class="accordion-content">
                     <div class="p-4 border-t border-input-border">
-                        <form method="post" class="space-y-3">{% csrf_token %}<div><label class="block text-sm font-medium text-text-secondary">{{ cerrar_mecanico_form.motivo_pendiente.label }}</label>{{ cerrar_mecanico_form.motivo_pendiente }}</div><div><label class="block text-sm font-medium text-text-secondary">{{ cerrar_mecanico_form.kilometraje_cierre.label }}</label>{{ cerrar_mecanico_form.kilometraje_cierre }}</div><button type="submit" name="cerrar_mecanico" class="btn-primary !bg-green-600 hover:!bg-green-700 w-full justify-center">Marcar como Realizado</button></form>
+                        <form action="{% url 'cerrar_ot_mecanico' ot.pk %}" method="post" class="space-y-3">{% csrf_token %}<div><label class="block text-sm font-medium text-text-secondary">{{ cerrar_mecanico_form.motivo_pendiente.label }}</label>{{ cerrar_mecanico_form.motivo_pendiente }}</div><div><label class="block text-sm font-medium text-text-secondary">{{ cerrar_mecanico_form.kilometraje_cierre.label }}</label>{{ cerrar_mecanico_form.kilometraje_cierre }}</div><button type="submit" class="btn-primary !bg-green-600 hover:!bg-green-700 w-full justify-center">Marcar como Realizado</button></form>
                     </div>
                 </div>
             </div>
@@ -163,7 +163,7 @@
                 </div>
                 <div class="accordion-content">
                     <div class="p-4 border-t border-input-border">
-                        <form id="formCambiarEstado" method="post" class="space-y-3">{% csrf_token %}<div><label for="{{ cambiar_estado_form.estado.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ cambiar_estado_form.estado.label }}</label>{{ cambiar_estado_form.estado }}</div><input type="hidden" name="cambiar_estado" value="1"><button type="submit" class="btn-primary w-full justify-center">Actualizar Estado</button></form>
+                        <form id="formCambiarEstado" action="{% url 'cambiar_estado_ot' ot.pk %}" method="post" class="space-y-3">{% csrf_token %}<div><label for="{{ cambiar_estado_form.estado.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ cambiar_estado_form.estado.label }}</label>{{ cambiar_estado_form.estado }}</div><button type="submit" class="btn-primary w-full justify-center">Actualizar Estado</button></form>
                     </div>
                 </div>
             </div>
@@ -174,8 +174,8 @@
 </div>
 
 <!-- Modales -->
-<div id="pausarOTModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"><div class="card-style w-full max-w-md"><h3 class="text-lg font-bold mb-4">Pausar Orden de Trabajo</h3><form method="post">{% csrf_token %}<div class="space-y-3">{{ pausar_form.as_p }}</div><div class="flex justify-end gap-3 mt-6"><button type="button" class="btn-primary !bg-gray-500 hover:!bg-gray-600" onclick="closeModal('pausarOTModal')">Cancelar</button><button type="submit" name="pausar_ot" class="btn-primary !bg-yellow-500 hover:!bg-yellow-600">Confirmar Pausa</button></div></form></div></div>
-<div id="diagnosticoModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"><div class="card-style w-full max-w-md"><h3 class="text-lg font-bold mb-4">Añadir Diagnóstico Técnico</h3><form method="post">{% csrf_token %}<div class="space-y-3">{{ diagnostico_form.as_p }}</div><div class="flex justify-end gap-3 mt-6"><button type="button" class="btn-primary !bg-gray-500 hover:!bg-gray-600" onclick="closeModal('diagnosticoModal')">Cancelar</button><button type="submit" name="guardar_diagnostico" class="btn-primary">Guardar Diagnóstico</button></div></form></div></div>
+<div id="pausarOTModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"><div class="card-style w-full max-w-md"><h3 class="text-lg font-bold mb-4">Pausar Orden de Trabajo</h3><form action="{% url 'pausar_ot' ot.pk %}" method="post">{% csrf_token %}<div class="space-y-3">{{ pausar_form.as_p }}</div><div class="flex justify-end gap-3 mt-6"><button type="button" class="btn-primary !bg-gray-500 hover:!bg-gray-600" onclick="closeModal('pausarOTModal')">Cancelar</button><button type="submit" class="btn-primary !bg-yellow-500 hover:!bg-yellow-600">Confirmar Pausa</button></div></form></div></div>
+<div id="diagnosticoModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"><div class="card-style w-full max-w-md"><h3 class="text-lg font-bold mb-4">Añadir Diagnóstico Técnico</h3><form action="{% url 'guardar_diagnostico_ot' ot.pk %}" method="post">{% csrf_token %}<div class="space-y-3">{{ diagnostico_form.as_p }}</div><div class="flex justify-end gap-3 mt-6"><button type="button" class="btn-primary !bg-gray-500 hover:!bg-gray-600" onclick="closeModal('diagnosticoModal')">Cancelar</button><button type="submit" class="btn-primary">Guardar Diagnóstico</button></div></form></div></div>
 <div id="modalBuscarRepuesto" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4"><div class="card-style w-full max-w-2xl"><h3 class="text-lg font-bold mb-4"><i class="fas fa-search mr-2"></i>Buscar Repuesto</h3><input type="text" id="repuesto-search-input" placeholder="Escriba para buscar..." class="w-full mb-4"><div id="repuesto-search-results" class="max-h-64 overflow-y-auto"><p class="text-sm text-text-secondary text-center">Los resultados aparecerán aquí.</p></div><div class="flex justify-end mt-6"><button type="button" class="btn-primary !bg-gray-500 hover:!bg-gray-600" onclick="closeModal('modalBuscarRepuesto')">Cerrar</button></div></div></div>
 
 {% endblock content %}

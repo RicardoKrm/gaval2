@@ -74,7 +74,8 @@ MIDDLEWARE = [
 
 # --- URLS Y TENANTS ---
 
-ROOT_URLCONF = 'tms_gaval.urls' # Ajusta 'tms_gaval' al nombre de tu carpeta de proyecto si es diferente
+ROOT_URLCONF = 'tms_gaval.urls' # URLconf para el esquema 'public'
+TENANT_ROOT_URLCONF = 'tms_gaval.tenant_urls' # URLconf para los esquemas de tenants
 
 TENANT_MODEL = "tenants.Empresa"          # Tu modelo personalizado de tenant
 TENANT_DOMAIN_MODEL = "tenants.Domain"    # Tu modelo personalizado de dominio
@@ -161,18 +162,43 @@ AUTHENTICATION_BACKENDS = [
 # DEFAULT_FROM_EMAIL = 'no-reply@tudominio.com'
 
 # Opcional: Configuración de LOGGING para producción
-# LOGGING = {
-#     'version': 1,
-#     'disable_existing_loggers': False,
-#     'handlers': {
-#         'console': {
-#             'class': 'logging.StreamHandler',
-#         },
-#     },
-#     'loggers': {
-#         'django': {
-#             'handlers': ['console'],
-#             'level': 'INFO',
-#         },
-#     },
-# }
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose', # Usar formato verbose para la consola
+        },
+        # Podrías añadir un FileHandler aquí si quieres loguear a un archivo también
+        # 'file': {
+        #     'level': 'WARNING', # Loguear WARNING y superior a archivo
+        #     'class': 'logging.FileHandler',
+        #     'filename': BASE_DIR / 'django_errors.log',
+        #     'formatter': 'verbose',
+        # },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'], # Añadir 'file' aquí si se configura FileHandler
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'), # Nivel configurable, INFO por defecto
+            'propagate': True,
+        },
+        # Puedes añadir loggers específicos para tus apps si lo necesitas
+        # 'flota': {
+        #     'handlers': ['console'],
+        #     'level': 'DEBUG', # Nivel más detallado para tu app
+        #     'propagate': False,
+        # },
+    },
+}

@@ -6,8 +6,8 @@ from django.contrib import messages
 from django_tenants.utils import get_tenant_model, get_tenant_domain_model, tenant_context 
 from django.contrib.auth import authenticate, login
 
-# Importa el formulario que acabamos de crear en flota/forms.py
-from flota.forms import TenantLoginForm 
+# Importa el formulario desde su nueva ubicación en cuentas/forms.py
+from cuentas.forms import TenantLoginForm
 
 # Vista para tu landing page (la página principal de localhost:8000)
 # Asumiendo que tu landing page está en templates/landing.html

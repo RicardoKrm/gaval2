@@ -1,0 +1,178 @@
+{% extends "flota/base.html" %}
+{% load static %}
+
+{% block title %}Gestión de Usuarios - Pulser{% endblock %}
+
+{% block extra_head %}
+    <style>
+        /* Estilos específicos para esta página que no están en base.html */
+        .page-header-main-list {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .page-header-main-list h1 {
+            font-weight: 700;
+            font-size: 1.875rem;
+            color: var(--text-primary);
+        }
+        .table-custom {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .table-custom thead th {
+            background-color: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-weight: 600;
+            border-bottom: 2px solid var(--input-border);
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+        .table-custom tbody tr:hover {
+            background-color: var(--bg-secondary);
+        }
+        .table-custom td {
+            padding: 0.75rem 1rem;
+            vertical-align: middle;
+            border-bottom: 1px solid var(--input-border);
+            color: var(--text-primary);
+        }
+        .badge-custom {
+            padding: 0.25em 0.6em;
+            border-radius: 0.25rem;
+            font-weight: 500;
+            font-size: 0.875em;
+            white-space: nowrap;
+        }
+        .badge-secondary-custom {
+            background-color: var(--input-border);
+            color: var(--text-secondary);
+        }
+        .badge-danger-custom {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+        html.dark .badge-danger-custom {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+        }
+        .btn-action-table {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.875rem;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--input-border);
+            color: var(--text-secondary);
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-action-table:hover {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    {# ELIMINAMOS LA ETIQUETA <body class="dark"> DE AQUÍ #}
+    {# ELIMINAMOS EL DIV class="page-container" DE AQUÍ, YA QUE BASE.HTML YA TIENE UN CONTENEDOR PRINCIPAL. #}
+    {# Si quieres un contenedor extra con los estilos de .page-container, enciérralo en un div con esa clase #}
+    {# PERO LA ESTRUCTURA PRINCIPAL DEBE IR EN BASE.HTML #}
+
+    <div class="page-container"> {# Añadido de nuevo si quieres el max-width, padding y margin:0 auto específico de esta page #}
+
+        <div class="page-header-main-list animate-pop-in">
+            <h1><i class="fas fa-users-gear mr-2"></i> Gestión de Usuarios</h1>
+            <div>
+                <a href="{% url 'crear_usuario' %}" class="btn-custom">
+                    <i class="fas fa-plus-circle mr-1"></i> Crear Nuevo Usuario
+                </a>
+            </div>
+        </div>
+
+        <div class="section-card card-style animate-pop-in">
+            <div class="table-responsive-custom">
+                <table class="table-custom">
+                    <thead>
+                        <tr>
+                            <th>Nombre de Usuario</th>
+                            <th>Nombre Completo</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario in usuarios %}
+                            <tr>
+                                <td><strong class="font-bold-custom">{{ usuario.username }}</strong></td>
+                                <td><span>{{ usuario.get_full_name|default:"-" }}</span></td>
+                                <td><span>{{ usuario.email|default:"-" }}</span></td>
+                                <td>
+                                    {% with grupo=usuario.groups.first %}
+                                        {% if grupo %}
+                                            <span class="badge-custom badge-secondary-custom">{{ grupo.name }}</span>
+                                        {% else %}
+                                            <span class="badge-custom badge-danger-custom">Sin Rol</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'editar_usuario' user_id=usuario.pk %}" class="btn-action-table" title="Editar">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center-custom py-4 text-secondary-custom">No hay usuarios registrados.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div> {# Cierre de .page-container #}
+
+{% endblock %}
+
+{% block extra_scripts %}
+    {{ block.super }} {# ¡IMPORTANTE! Para incluir los scripts de base.html #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Animación pop-in para las secciones (se mantiene aquí si solo aplica a esta página)
+            const animateElements = document.querySelectorAll('.animate-pop-in');
+            animateElements.forEach((el, index) => {
+                el.style.animationDelay = `${index * 0.1}s`;
+                el.style.opacity = '0'; // Comienza invisible
+                el.style.transform = 'translateY(20px)'; // Pequeño desplazamiento inicial
+            });
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.opacity = '1';
+                        entry.target.style.transform = 'translateY(0)';
+                        observer.unobserve(entry.target); // Deja de observar una vez animado
+                    }
+                });
+            }, { threshold: 0.1 });
+
+            animateElements.forEach(element => {
+                observer.observe(element);
+            });
+            // La lógica del cambio de tema NO DEBE IR AQUÍ. Ya está en base.html
+            // y opera sobre la etiqueta <html>. Si la duplicas, puede haber conflictos.
+        });
+    </script>
+{% endblock %}
