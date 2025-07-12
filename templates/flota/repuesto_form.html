@@ -1,476 +1,120 @@
 {% extends "flota/base.html" %}
 {% load static %}
 
-{% block title %}{% if repuesto %}Editar Repuesto{% else %}Crear Nuevo Repuesto{% endif %} - Pulser{% endblock %}
-
-{% block extra_head %}
-    {# ELIMINADAS TODAS LAS CARGAS DE CDN (Tailwind, Font Awesome, Select2 CSS) #}
-    {# Ya se cargan una única vez en base.html, duplicarlas causa problemas. #}
-    
-    <style>
-        /* CSS Variables - ESTAS VARIABLES SÍ DEBEN ESTAR EN BASE.HTML */
-        /* Si estas variables son comunes a varias páginas (dashboard, usuarios, inventario, etc.), */
-        /* su lugar ideal es el <style> en el <head> de base.html. */
-        /* Por ahora las mantengo aquí si son overrides MUY específicos, pero idealmente, refactorizar */
-        /* el sistema de variables de tema para que base.html las defina globalmente. */
-        :root {
-            --bg-primary: hsl(0, 0%, 98%);
-            --bg-secondary: hsl(0, 0%, 95%);
-            --text-primary: hsl(210, 20%, 20%);
-            --text-secondary: hsl(210, 10%, 45%);
-            --accent: hsl(185, 100%, 50%);
-            --accent-hover: hsl(185, 100%, 40%);
-            --card-base-bg: #FFFFFF;
-            --input-bg: #FFFFFF;
-            --input-border: hsl(210, 10%, 80%);
-            --input-placeholder: hsl(210, 10%, 65%);
-            --text-shadow-strong: none;
-            --text-shadow-subtle: none;
-            --calendar-icon-filter: invert(0);
-            --shadow-light: 0 10px 25px rgba(0, 0, 0, 0.1);
-            --shadow-medium: 0 20px 50px rgba(0, 0, 0, 0.15);
-            --success-color: hsl(140, 70%, 45%);
-            --warning-color: hsl(40, 95%, 55%);
-            --danger-color: hsl(0, 70%, 60%);
-            --info-color: var(--accent);
-            --header-gradient-start: hsl(210, 20%, 90%);
-            --header-gradient-end: hsl(210, 15%, 95%);
-        }
-
-        html.dark {
-            --bg-primary: hsl(220, 30%, 5%);
-            --bg-secondary: hsl(220, 25%, 8%);
-            --text-primary: hsl(0, 0%, 100%);
-            --text-secondary: hsl(210, 10%, 70%);
-            --accent: hsl(217, 91%, 60%);
-            --accent-hover: hsl(217, 75%, 50%);
-            --card-base-bg: hsl(210, 20%, 13%);
-            --input-bg: hsl(210, 20%, 18%);
-            --input-border: hsl(210, 10%, 25%);
-            --input-placeholder: hsl(210, 10%, 45%);
-            --text-shadow-strong: 0 0 15px var(--accent);
-            --text-shadow-subtle: 0 0 8px hsla(217, 91%, 60%, 0.4);
-            --calendar-icon-filter: invert(1);
-            --shadow-light: 0 10px 25px rgba(0, 0, 0, 0.5);
-            --shadow-medium: 0 20px 50px rgba(0, 0, 0, 0.8);
-            --success-color: hsl(150, 60%, 40%);
-            --warning-color: hsl(39, 92%, 50%);
-            --danger-color: hsl(0, 80%, 55%);
-            --info-color: var(--accent);
-            --header-gradient-start: hsl(220, 30%, 10%);
-            --header-gradient-end: hsl(220, 25%, 15%);
-        }
-
-        /* Estilos globales del cuerpo - Mover a base.html si son para todas las páginas */
-        body {
-            /* font-family, background-color, color, line-height, margin, padding, transition ya en base.html */
-            overflow-x: hidden; 
-            background-image: radial-gradient(circle at 100% 150%, var(--card-base-bg) 0%, transparent 20%),
-                              radial-gradient(circle at 0% 150%, var(--card-base-bg) 0%, transparent 20%),
-                              radial-gradient(circle at 50% 100%, var(--card-base-bg) 0%, transparent 10%),
-                              linear-gradient(to bottom, var(--bg-primary), color-mix(in srgb, var(--bg-primary) 80%, black)); 
-            background-size: 120% 120%;
-            background-attachment: fixed;
-        }
-
-        /* Contenedor principal de la página */
-        .page-container {
-            padding: 2.5rem 1.5rem;
-            max-width: 800px;
-            margin: 0 auto;
-            position: relative;
-        }
-
-        /* Encabezado del formulario */
-        .page-header-main-form {
-            background: linear-gradient(135deg, var(--header-gradient-start) 0%, var(--header-gradient-end) 100%);
-            padding: 2rem 2.5rem;
-            border-radius: 0.75rem;
-            margin-bottom: 2.5rem;
-            box-shadow: var(--shadow-medium);
-            color: var(--text-primary); 
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .page-header-main-form h1 {
-            font-weight: 700;
-            font-size: 2.5rem;
-            margin: 0;
-            color: var(--text-primary); 
-            text-shadow: var(--text-shadow-subtle);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-        }
-        .page-header-main-form h1 i {
-            color: var(--accent);
-            font-size: 2.2rem;
-        }
-        .page-header-main-form p.form-description {
-            color: var(--text-secondary);
-            font-weight: 400;
-            font-size: 1.05rem;
-            margin-top: 0.8rem;
-            margin-bottom: 0;
-            max-width: 600px;
-        }
-
-        /* Contenedor del formulario principal */
-        .form-main-card {
-            background-color: var(--card-base-bg);
-            border: 1px solid var(--input-border);
-            border-radius: 1rem;
-            box-shadow: var(--shadow-medium);
-            padding: 2.5rem;
-            margin: 0 auto;
-            position: relative;
-            z-index: 1;
-            transition: all 0.3s ease;
-        }
-        html.light .form-main-card {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-        }
-
-        /* Estilo para secciones de formulario agrupadas */
-        .form-section-group {
-            background-color: var(--input-bg);
-            border: 1px solid var(--input-border);
-            border-radius: 0.7rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
-        }
-        .form-section-group:last-of-type {
-            margin-bottom: 0;
-        }
-
-        /* Título de sección dentro del formulario */
-        .form-section-group h5 {
-            color: var(--text-primary);
-            font-weight: 700;
-            font-size: 1.15rem;
-            margin-top: 0; 
-            margin-bottom: 1rem;
-            border-bottom: 1px solid var(--input-border);
-            padding-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-        }
-        .form-section-group h5 i {
-            color: var(--accent);
-            font-size: 1.15rem;
-        }
-
-        /* Etiquetas de formulario */
-        .form-label-custom {
-            font-weight: 600; 
-            color: var(--text-primary);
-            margin-bottom: 0.8rem;
-            font-size: 1em;
-        }
-
-        /* Controles de formulario (input, select, textarea) */
-        /* Estas clases ahora serán aplicadas por el widget en forms.py */
-        .custom-input { 
-            background-color: var(--input-bg); 
-            border: 1px solid var(--input-border); 
-            color: var(--text-primary); 
-            padding: 0.9rem 1.4rem; 
-            border-radius: 0.7rem; 
-            font-size: 1.05rem;
-            height: 52px;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
-            transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        .custom-input::placeholder { color: var(--input-placeholder); }
-        .custom-input:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 0.5rem hsla(217, 91%, 60%, 0.4);
-        }
-        input[type="number"].custom-input::-webkit-inner-spin-button,
-        input[type="number"].custom-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type="number"].custom-input { -moz-appearance: textfield; }
-
-        /* Estilos para Select2 (sobrescribiendo los de Select2 y Select2 Bootstrap) */
-        .select2-container--default .select2-selection--single { 
-            background-color: var(--input-bg) !important; 
-            border: 1px solid var(--input-border) !important; 
-            border-radius: 0.7rem !important;
-            height: 52px !important;
-            display: flex !important; align-items: center !important;
-            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__rendered { 
-            color: var(--text-primary) !important; line-height: 1.5 !important;
-            padding-left: 1.4rem !important;
-        }
-        .select2-container--default .select2-selection--single .select2-selection__arrow {
-            height: 52px !important; right: 1.4rem !important; position: absolute; top: 0;
-        }
-        .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
-            background-color: var(--accent) !important; color: var(--text-primary) !important;
-        }
-        .select2-container--default .select2-results__option {
-            background-color: var(--card-base-bg) !important; color: var(--text-primary) !important;
-            padding: 0.8rem 1.4rem !important; transition: background-color 0.2s ease;
-        }
-        .select2-container--default .select2-results__option[aria-selected=true] {
-            background-color: var(--bg-secondary) !important;
-        }
-        .select2-dropdown {
-            background-color: var(--card-base-bg) !important; border: 1px solid var(--input-border) !important;
-            border-radius: 0.7rem !important; box-shadow: var(--shadow-light); overflow: hidden;
-        }
-        .select2-search input {
-            background-color: var(--input-bg) !important; color: var(--text-primary) !important;
-            border: 1px solid var(--input-border) !important; box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
-        }
-        .select2-container--default .select2-selection--single .select2-selection__clear {
-            color: var(--text-secondary) !important; font-size: 1.2em; right: 2.5rem !important; padding-right: 0 !important;
-        }
-        .select2-container--default .select2-selection__arrow b {
-            border-color: var(--text-secondary) transparent transparent transparent !important;
-        }
-        .select2-container--default.select2-container--open .select2-selection__arrow b {
-            border-color: transparent transparent var(--text-secondary) transparent !important;
-        }
-        .select2-container--default .select2-selection__placeholder {
-            color: var(--input-placeholder) !important;
-        }
-        .select2-container--default.select2-container--focus .select2-selection--single {
-            border-color: var(--accent) !important;
-            box-shadow: 0 0 0 0.5rem hsla(217, 91%, 60%, 0.4) !important;
-        }
-
-        /* Botones de acción */
-        .button-action-group {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .btn-custom-action {
-            font-weight: 700;
-            border-radius: 0.7rem;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.8rem;
-            font-size: 1.2rem;
-            padding: 1rem 2.5rem;
-            text-decoration: none;
-            background-color: var(--success-color);
-            border: none;
-            color: var(--text-primary);
-            box-shadow: var(--shadow-light);
-        }
-        .btn-custom-action:hover {
-            background-color: color-mix(in srgb, var(--success-color) 80%, black);
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-medium);
-        }
-        .btn-custom-cancel {
-            background-color: var(--input-bg);
-            border: 1px solid var(--input-border);
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 1.1rem;
-            padding: 0.9rem 2.2rem;
-            box-shadow: none;
-            transition: all 0.3s ease;
-        }
-        .btn-custom-cancel:hover {
-            background-color: var(--bg-secondary);
-            color: var(--text-primary);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-        html.light .btn-custom-cancel:hover {
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-        }
-
-        /* Botón de cambio de tema - COMENTADO/ELIMINADO PORQUE DEBE IR SOLO EN BASE.HTML */
-        /* .page-theme-toggle { ... } */
-
-        /* Responsive adjustments */
-        @media (max-width: 768px) {
-            .page-container { padding: 1.5rem 0.8rem; }
-            .page-header-main-form { padding: 1.5rem; margin-bottom: 1.5rem; border-radius: 0.75rem; }
-            .page-header-main-form h1 { font-size: 2rem; }
-            .page-header-main-form h1 i { font-size: 1.8rem; }
-            .page-header-main-form p.form-description { font-size: 0.95rem; margin-top: 0.5rem;}
-            .form-main-card { padding: 1.5rem; border-radius: 0.75rem; }
-            .form-section-group { padding: 1.2rem; margin-bottom: 1rem; border-radius: 0.75rem; }
-            .form-section-group h5 { font-size: 1.05rem; margin-bottom: 0.8rem; }
-            .form-section-group h5 i { font-size: 1em; }
-            .form-label-custom { font-size: 0.95rem; margin-bottom: 0.6rem;}
-            .custom-input { height: 48px; font-size: 1em; padding: 0.8rem 1.2rem;}
-            .select2-container--default .select2-selection--single { height: 48px !important; }
-            .select2-container--default .select2-selection--single .select2-selection__rendered { padding-left: 1.2rem !important; }
-            .select2-container--default .select2-selection--single .select2-selection__arrow { height: 48px !important; right: 1.2rem !important; }
-            .button-action-group { gap: 0.8rem; margin-top: 1.5rem; }
-            .btn-custom-action, .btn-custom-cancel { font-size: 1.1rem; padding: 0.9rem 1.8rem; }
-            /* .page-theme-toggle { top: 15px; right: 15px; font-size: 1.5rem; } */
-        }
-
-        @media (max-width: 576px) {
-            .page-container { padding: 1rem 0.5rem; }
-            .page-header-main-form { padding: 1.2rem; margin-bottom: 1rem; border-radius: 0.5rem; }
-            .page-header-main-form h1 { font-size: 1.8rem; }
-            .page-header-main-form h1 i { font-size: 1.5rem; }
-            .page-header-main-form p.form-description { font-size: 0.9rem; margin-top: 0.5rem;}
-            .form-main-card { padding: 1.2rem; border-radius: 0.5rem; }
-            .form-section-group { padding: 1rem; margin-bottom: 0.8rem; border-radius: 0.5rem; }
-            .form-section-group h5 { font-size: 1rem; margin-bottom: 0.7rem; }
-            .form-section-group h5 i { font-size: 0.95rem; }
-            .form-label-custom { font-size: 0.9rem; margin-bottom: 0.5rem;}
-            .custom-input { height: 44px; font-size: 0.95rem; padding: 0.7rem 1rem;}
-            .select2-container--default .select2-selection--single { height: 44px !important; }
-            .select2-container--default .select2-selection--single .select2-selection__rendered { padding-left: 1rem !important; }
-            .select2-container--default .select2-selection--single .select2-selection__arrow { height: 44px !important; right: 1rem !important; }
-            .button-action-group { gap: 0.7rem; margin-top: 1.5rem; }
-            .btn-custom-action, .btn-custom-cancel { font-size: 1rem; padding: 0.8rem 1.5rem; }
-        }
-    </style>
-{% endblock %}
+{% block title %}{% if form.instance.pk %}Editar Repuesto{% else %}Crear Nuevo Repuesto{% endif %}{% endblock %}
 
 {% block content %}
-    {# ELIMINADO: La etiqueta <body> y el botón de cambio de tema global. #}
-    {# Esos elementos deben ser definidos una sola vez en base.html. #}
+<div class="max-w-3xl mx-auto">
     
-    <div class="page-container"> {# Este div es el contenedor principal del contenido de esta página. #}
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-text-primary">
+            {% if form.instance.pk %}
+                <i class="fas fa-edit mr-2 text-accent"></i>Editar Repuesto
+            {% else %}
+                <i class="fas fa-plus-circle mr-2 text-accent"></i>Crear Nuevo Repuesto
+            {% endif %}
+        </h1>
+        <p class="text-text-secondary mt-2">
+            {% if form.instance.pk %}
+                Modificando los detalles de <strong>{{ form.instance.nombre }}</strong>.
+            {% else %}
+                Añade un nuevo ítem al inventario de repuestos de tu flota.
+            {% endif %}
+        </p>
+    </div>
 
-        <div class="page-header-main-form animate-pop-in">
-            <h1>
-                {% if repuesto %}
-                    <i class="fas fa-edit mr-2"></i>Editar Repuesto
-                {% else %}
-                    <i class="fas fa-plus-circle mr-2"></i>Crear Nuevo Repuesto
-                {% endif %}
-            </h1>
-            <p class="form-description">
-                {% if repuesto %}
-                    Modificando los detalles de <strong>{{ repuesto.nombre }} ({{ repuesto.numero_parte }})</strong> en tu inventario.
-                {% else %}
-                    Añade un nuevo ítem al inventario de repuestos de tu flota.
-                {% endif %}
-            </p>
-        </div>
+    <div class="card-style">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
 
-        <div class="form-main-card animate-pop-in">
-            <form method="post" class="grid grid-cols-1 gap-4">
-                {% csrf_token %}
-                
-                <div class="form-section-group">
-                    <h5><i class="fas fa-info-circle mr-2"></i>Información Básica del Repuesto</h5>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div class="col-span-full md:col-span-2">
-                            <label class="form-label-custom" for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
-                            {# CAMBIO CLAVE AQUÍ: Solo renderiza el campo. La clase ya la pone forms.py #}
-                            {{ form.nombre }} 
-                        </div>
-                        <div>
-                            <label class="form-label-custom" for="{{ form.numero_parte.id_for_label }}">{{ form.numero_parte.label }}</label>
-                            {{ form.numero_parte }}
-                        </div>
-                        <div>
-                            <label class="form-label-custom" for="{{ form.calidad.id_for_label }}">{{ form.calidad.label }}</label>
-                            {{ form.calidad }}
-                        </div>
-                        <div>
-                            <label class="form-label-custom" for="{{ form.stock_actual.id_for_label }}">{{ form.stock_actual.label }}</label>
-                            {{ form.stock_actual }}
-                        </div>
-                        <div>
-                            <label class="form-label-custom" for="{{ form.stock_minimo.id_for_label }}">{{ form.stock_minimo.label }}</label>
-                            {{ form.stock_minimo }}
-                        </div>
+            {% if form.non_field_errors %}
+                <div class="p-3 bg-red-500/20 text-red-400 rounded-md text-sm">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Sección de Información Básica -->
+            <div>
+                <h3 class="text-lg font-semibold text-text-primary border-b border-input-border pb-2 mb-4">Información Básica</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div class="md:col-span-2">
+                        <label for="{{ form.nombre.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ form.nombre.label }}</label>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}<p class="text-red-500 text-xs mt-1">{{ form.nombre.errors.as_text }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.numero_parte.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ form.numero_parte.label }}</label>
+                        {{ form.numero_parte }}
+                        {% if form.numero_parte.errors %}<p class="text-red-500 text-xs mt-1">{{ form.numero_parte.errors.as_text }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.calidad.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ form.calidad.label }}</label>
+                        {{ form.calidad }}
+                        {% if form.calidad.errors %}<p class="text-red-500 text-xs mt-1">{{ form.calidad.errors.as_text }}</p>{% endif %}
                     </div>
                 </div>
+            </div>
 
-                <div class="form-section-group">
-                    <h5><i class="fas fa-warehouse mr-2"></i>Detalles de Ubicación y Proveedor</h5>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="form-label-custom" for="{{ form.ubicacion.id_for_label }}">{{ form.ubicacion.label }}</label>
-                            {{ form.ubicacion }}
-                        </div>
-                        <div>
-                            <label class="form-label-custom" for="{{ form.proveedor_habitual.id_for_label }}">{{ form.proveedor_habitual.label }}</label>
-                            {{ form.proveedor_habitual }}
-                        </div>
+            <!-- Sección de Inventario y Costos -->
+            <div>
+                <h3 class="text-lg font-semibold text-text-primary border-b border-input-border pb-2 mb-4">Inventario y Costos</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                    <div>
+                        <label for="{{ form.stock_actual.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ form.stock_actual.label }}</label>
+                        {{ form.stock_actual }}
+                        {% if form.stock_actual.errors %}<p class="text-red-500 text-xs mt-1">{{ form.stock_actual.errors.as_text }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.stock_minimo.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ form.stock_minimo.label }}</label>
+                        {{ form.stock_minimo }}
+                        {% if form.stock_minimo.errors %}<p class="text-red-500 text-xs mt-1">{{ form.stock_minimo.errors.as_text }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.precio_unitario.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ form.precio_unitario.label }}</label>
+                        {{ form.precio_unitario }}
+                        {% if form.precio_unitario.errors %}<p class="text-red-500 text-xs mt-1">{{ form.precio_unitario.errors.as_text }}</p>{% endif %}
                     </div>
                 </div>
+            </div>
 
-                <div class="button-action-group col-span-full">
-                    <button type="submit" class="btn-custom-action">
-                        <i class="fas fa-save mr-2"></i>Guardar Repuesto
-                    </button>
-                    <a href="{% url 'repuesto_list' %}" class="btn-custom-cancel">
-                        <i class="fas fa-times-circle mr-2"></i>Cancelar
-                    </a>
+            <!-- Sección de Ubicación y Proveedor -->
+            <div>
+                <h3 class="text-lg font-semibold text-text-primary border-b border-input-border pb-2 mb-4">Ubicación y Proveedor</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <div>
+                        <label for="{{ form.ubicacion.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ form.ubicacion.label }}</label>
+                        {{ form.ubicacion }}
+                        {% if form.ubicacion.errors %}<p class="text-red-500 text-xs mt-1">{{ form.ubicacion.errors.as_text }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label for="{{ form.proveedor_habitual.id_for_label }}" class="block text-sm font-medium text-text-secondary">{{ form.proveedor_habitual.label }}</label>
+                        {{ form.proveedor_habitual }}
+                        {% if form.proveedor_habitual.errors %}<p class="text-red-500 text-xs mt-1">{{ form.proveedor_habitual.errors.as_text }}</p>{% endif %}
+                    </div>
                 </div>
-            </form>
-        </div>
-    </div> {# Cierre de .page-container #}
+            </div>
 
+            <!-- Botones de Acción -->
+            <div class="flex justify-end gap-4 pt-4">
+                <a href="{% url 'repuesto_list' %}" class="btn-primary !bg-gray-500 hover:!bg-gray-600 text-text-primary">Cancelar</a>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save mr-2"></i>Guardar Repuesto
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
-    {{ block.super }} {# ¡IMPORTANTE! Para incluir los scripts de base.html #}
-    {# ELIMINADOS: Las cargas de jQuery, Select2 JS, etc. -> Ya están en base.html #}
+    {{ block.super }}
     <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // La lógica de cambio de tema NO DEBE IR AQUÍ. Ya está en base.html y opera sobre la etiqueta <html>.
-        // Si la duplicas, puede haber conflictos.
-
-        // Animación pop-in para las secciones (se mantiene aquí si solo aplica a esta página)
-        const animateElements = document.querySelectorAll('.animate-pop-in');
-        animateElements.forEach((el, index) => {
-            el.style.animationDelay = `${index * 0.1}s`;
-            el.style.opacity = '0'; // Comienza invisible
-            el.style.transform = 'translateY(20px)'; // Pequeño desplazamiento inicial
-        });
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { threshold: 0.1 });
-
-        animateElements.forEach(element => {
-            observer.observe(element);
-        });
-
-        // Inicializar Select2 en los selectores de formulario
-        // Asegurarse de que los IDs aquí coincidan con los IDs que Django genera para tus campos
-        // Como ahora aplicamos 'select2' en forms.py, esto debería inicializarlo automáticamente
-        // para los campos con esa clase.
-        $('.select2').select2({
-            theme: "default", // Usamos el tema default y lo sobrescribimos con nuestro CSS
-            width: '100%', // Asegura que Select2 ocupe el 100% del ancho del contenedor
-            placeholder: "Seleccionar...", // Placeholder genérico
-            allowClear: true // Permite limpiar la selección
-        });
+        // La inicialización de Select2 ya está en base.html y se aplica
+        // a cualquier elemento con la clase .select2.
+        // Nos aseguramos que el campo de proveedor tenga esa clase en el forms.py
     });
     </script>
 {% endblock %}
