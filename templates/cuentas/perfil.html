@@ -4,46 +4,56 @@
 {% block title %}Mi Perfil - {{ user.username }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            
-            <div class="card shadow-sm">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">Mi Perfil</h4>
+<div class="max-w-4xl mx-auto">
+    <div class="card-style">
+        <div class="flex flex-col md:flex-row items-center md:items-start gap-8">
+            <!-- Columna del Avatar -->
+            <div class="flex-shrink-0 w-40 text-center">
+                <div class="h-40 w-40 rounded-full bg-accent flex items-center justify-center text-white text-6xl font-bold mx-auto">
+                    {{ user.username|first|upper }}
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4 text-center">
-                            <!-- Espacio para una foto de perfil en el futuro -->
-                            <img src="{% static 'img/default-avatar.png' %}" alt="Foto de perfil" class="img-fluid rounded-circle mb-3" style="width: 150px; height: 150px; object-fit: cover;">
-                            <h5 class="card-title">{{ user.get_full_name|default:user.username }}</h5>
-                            <p class="card-text text-muted">Cargo a definir</p>
-                        </div>
-                        <div class="col-md-8">
-                            <h5 class="border-bottom pb-2 mb-3">Información de la Cuenta</h5>
-                            <dl class="row">
-                                <dt class="col-sm-4">Nombre de Usuario:</dt>
-                                <dd class="col-sm-8">{{ user.username }}</dd>
-
-                                <dt class="col-sm-4">Correo Electrónico:</dt>
-                                <dd class="col-sm-8">{{ user.email }}</dd>
-
-                                <dt class="col-sm-4">Nombre:</dt>
-                                <dd class="col-sm-8">{{ user.first_name|default:"No especificado" }}</dd>
-
-                                <dt class="col-sm-4">Apellido:</dt>
-                                <dd class="col-sm-8">{{ user.last_name|default:"No especificado" }}</dd>
-
-                                <dt class="col-sm-4">Miembro desde:</dt>
-                                <dd class="col-sm-8">{{ user.date_joined|date:"d F, Y" }}</dd>
-                            </dl>
-                            <a href="#" class="btn btn-secondary btn-sm mt-3">Editar Perfil</a>
-                        </div>
-                    </div>
-                </div>
+                <h2 class="text-2xl font-bold text-text-primary mt-4">{{ user.get_full_name|default:user.username }}</h2>
+                <p class="text-text-secondary">
+                    {% with grupo=user.groups.first %}
+                        {{ grupo.name|default:"Rol no asignado" }}
+                    {% endwith %}
+                </p>
             </div>
 
+            <!-- Columna de Información -->
+            <div class="flex-grow w-full">
+                <h3 class="text-xl font-semibold text-text-primary border-b border-input-border pb-2 mb-4">
+                    <i class="fas fa-info-circle mr-2 text-accent"></i>Información de la Cuenta
+                </h3>
+                <dl class="grid grid-cols-1 sm:grid-cols-3 gap-x-4 gap-y-6">
+                    <div class="sm:col-span-1">
+                        <dt class="text-sm font-medium text-text-secondary">Nombre de Usuario</dt>
+                        <dd class="mt-1 text-sm text-text-primary">{{ user.username }}</dd>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <dt class="text-sm font-medium text-text-secondary">Correo Electrónico</dt>
+                        <dd class="mt-1 text-sm text-text-primary">{{ user.email|default:"No especificado" }}</dd>
+                    </div>
+                    <div class="sm:col-span-1">
+                        <dt class="text-sm font-medium text-text-secondary">Nombre</dt>
+                        <dd class="mt-1 text-sm text-text-primary">{{ user.first_name|default:"No especificado" }}</dd>
+                    </div>
+                    <div class="sm:col-span-1">
+                        <dt class="text-sm font-medium text-text-secondary">Apellido</dt>
+                        <dd class="mt-1 text-sm text-text-primary">{{ user.last_name|default:"No especificado" }}</dd>
+                    </div>
+                    <div class="sm:col-span-1">
+                        <dt class="text-sm font-medium text-text-secondary">Miembro desde</dt>
+                        <dd class="mt-1 text-sm text-text-primary">{{ user.date_joined|date:"d M, Y" }}</dd>
+                    </div>
+                </dl>
+
+                <div class="mt-6 text-right">
+                    <a href="#" class="btn-primary !bg-gray-500 hover:!bg-gray-600 text-text-primary text-sm">
+                        <i class="fas fa-edit mr-2"></i>Editar Perfil (Próximamente)
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
