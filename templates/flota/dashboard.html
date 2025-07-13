@@ -3,6 +3,38 @@
 {% block title %}Pizarra de Mantenimiento{% endblock %}
 {% block full_width_content %}true{% endblock %}
 
+{% block extra_head %}
+<style>
+    .progress-bar-bg {
+        background-color: var(--input-border);
+        border-radius: 0.25rem;
+        overflow: hidden;
+    }
+    .progress-bar-fill {
+        height: 0.5rem;
+        border-radius: 0.25rem;
+        transition: width 0.5s ease-in-out;
+        background-color: var(--accent);
+    }
+    .status-badge {
+        padding: 0.25rem 0.6rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        border-radius: 9999px;
+        text-align: center;
+        min-width: 70px;
+        color: white;
+    }
+    .status-normal { background-color: #10b981; }
+    .status-proximo { background-color: #f59e0b; }
+    .status-vencido { background-color: #ef4444; }
+
+    #pizarraMantenimientoTable tbody tr:hover {
+        background-color: var(--bg-secondary);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="space-y-8">
 
@@ -101,13 +133,29 @@
                     <td class="px-1 py-2 whitespace-nowrap">{{ item.tipo_ultimo_mant|default:"--" }}</td>
                     <td class="px-1 py-2 whitespace-nowrap">{{ item.fecha_ultimo_mant|date:"d/m/Y"|default:"--" }}</td>
                     <td class="px-1 py-2">
-                        <span class="inline-block px-2 py-1 text-[10px] font-bold text-white rounded-full text-center min-w-[60px]">
+                        <span class="status-badge
+                            {% if item.estado == 'NORMAL' %}status-normal
+                            {% elif item.estado == 'PROXIMO' %}status-proximo
+                            {% elif item.estado == 'VENCIDO' %}status-vencido
+                            {% else %}bg-gray-400{% endif %}">
                             {{ item.estado }}
                         </span>
                     </td>
-                    <td class="px-1 py-2 font-medium
-                        {% if item.estado == 'PROXIMO' %}text-yellow-500{% elif item.estado == 'VENCIDO' %}text-red-500{% else %}text-text-primary{% endif %}">
-                        {{ item.kms_faltantes|floatformat:"0"|default:"--" }}
+                    <td class="px-1 py-2 font-medium">
+                        <div class="flex items-center gap-2">
+                            <span class="w-16 text-right
+                                {% if item.estado == 'PROXIMO' %}text-yellow-500{% elif item.estado == 'VENCIDO' %}text-red-500{% else %}text-text-primary{% endif %}">
+                                {{ item.kms_faltantes|floatformat:"0"|default:"--" }}
+                            </span>
+                            <div class="w-full progress-bar-bg">
+                                <div class="progress-bar-fill
+                                    {% if item.estado == 'VENCIDO' %}!bg-red-500
+                                    {% elif item.estado == 'PROXIMO' %}!bg-yellow-500
+                                    {% endif %}"
+                                     style="width: {{ item.porcentaje_km_recorrido|default:0 }}%;">
+                                </div>
+                            </div>
+                        </div>
                     </td>
                     <td class="px-1 py-2">{{ item.vehiculo.kilometraje_actual|floatformat:"0" }}</td>
                     <td class="px-1 py-2">{{ item.proximo_km|floatformat:"0"|default:"--" }}</td>
