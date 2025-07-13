@@ -128,12 +128,19 @@ def dashboard_flota(request):
         costo_total_acumulado += costo_vehiculo
         km_total_flota += km_actual
         
+        porcentaje_recorrido = 0
+        if intervalo_km and intervalo_km > 0 and km_ultimo_mant is not None:
+            km_recorridos = km_actual - km_ultimo_mant
+            if km_recorridos > 0:
+                porcentaje_recorrido = min((km_recorridos / intervalo_km) * 100, 100)
+
         data_flota_completa.append({
             'vehiculo': vehiculo, 'proxima_pauta_obj': pauta_obj, 'proximo_km': proximo_km_pauta,
             'kms_faltantes': kms_faltantes, 'estado': estado, 'km_prom_dia': km_prom_dia,
             'fecha_prox_mant': fecha_prox_mant, 'intervalo_km': intervalo_km, 'km_ultimo_mant': km_ultimo_mant,
             'fecha_ultimo_mant': fecha_ultimo_mant, 'tipo_ultimo_mant': tipo_ultimo_mant,
             'km_acum_prox': kms_faltantes, 'ot_abierta': ot_abierta,
+            'porcentaje_km_recorrido': porcentaje_recorrido,
         })
 
     data_flota_filtrada = data_flota_completa

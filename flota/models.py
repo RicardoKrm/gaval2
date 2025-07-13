@@ -330,8 +330,11 @@ class OrdenDeTrabajo(models.Model):
 
         super().save(*args, **kwargs)
 
+        # Si la OT se está finalizando por primera vez
         if self.estado == 'FINALIZADA' and original_estado != 'FINALIZADA':
-            if self.kilometraje_cierre and self.kilometraje_cierre > 0:
+            # Asegurarse de que hay un kilometraje de cierre válido
+            if self.kilometraje_cierre is not None and self.kilometraje_cierre > 0:
+                # Solo actualizar si el KM de la OT es mayor que el KM actual del vehículo
                 if self.vehiculo.kilometraje_actual < self.kilometraje_cierre:
                     self.vehiculo.kilometraje_actual = self.kilometraje_cierre
                     self.vehiculo.save(update_fields=['kilometraje_actual'])
