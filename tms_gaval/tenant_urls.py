@@ -27,6 +27,8 @@ urlpatterns = [
     path('ordenes/<int:ot_pk>/asignar-personal/', flota_views.asignar_personal_ot, name='asignar_personal_ot'),
     path('ordenes/<int:ot_pk>/cambiar-estado/', flota_views.cambiar_estado_ot_accion, name='cambiar_estado_ot'),
     path('ordenes/<int:ot_pk>/cerrar-mecanico/', flota_views.cerrar_ot_mecanico, name='cerrar_ot_mecanico'),
+    path('ordenes/<int:ot_pk>/solicitar-tarea/', flota_views.solicitar_nueva_tarea_ot, name='solicitar_nueva_tarea_ot'),
+    path('ordenes/<int:ot_pk>/guardar-prueba-ruta/', flota_views.guardar_prueba_de_ruta_ot, name='guardar_prueba_de_ruta_ot'),
 
     path('pizarra-programacion/', flota_views.pizarra_programacion, name='pizarra_programacion'),
     path('vehiculo/<int:pk>/actualizar-km/', flota_views.actualizar_km_vehiculo, name='actualizar_km'),

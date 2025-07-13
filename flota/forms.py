@@ -54,6 +54,7 @@ class OrdenDeTrabajoForm(forms.ModelForm):
         tipo_falla = cleaned_data.get('tipo_falla')
         sintomas = cleaned_data.get('sintomas_reportados')
 
+        # Lógica de validación existente
         if tipo_ot == 'PREVENTIVA' and not pauta:
             self.add_error('pauta_mantenimiento', 'Para una OT Preventiva, debe seleccionar una pauta.')
         if tipo_ot != 'PREVENTIVA' and pauta:
@@ -66,6 +67,19 @@ class OrdenDeTrabajoForm(forms.ModelForm):
             self.add_error('sintomas_reportados', 'Para una OT Evaluativa, debe describir los síntomas reportados.')
         if tipo_ot != 'EVALUATIVA' and sintomas:
             self.add_error('sintomas_reportados', 'Los síntomas solo se aplican a Órdenes de Trabajo de tipo EVALUATIVA.')
+
+        # --- NUEVA LÓGICA DE PRIORIDAD AUTOMÁTICA ---
+        if tipo_falla:
+            # Si la criticidad de la falla es 'ALTA', forzar la prioridad de la OT a 'CRITICA'
+            if tipo_falla.criticidad == 'ALTA':
+                cleaned_data['prioridad'] = 'CRITICA'
+            # Si es 'MEDIA', forzar a 'ALTA'
+            elif tipo_falla.criticidad == 'MEDIA':
+                 cleaned_data['prioridad'] = 'ALTA'
+            # Si es 'BAJA', forzar a 'MEDIA'
+            elif tipo_falla.criticidad == 'BAJA':
+                 cleaned_data['prioridad'] = 'MEDIA'
+
 
         return cleaned_data
 
@@ -191,6 +205,22 @@ class AsignarTareaForm(forms.Form):
             'style': 'width: 100%;'
         }),
         help_text="Seleccione una tarea predefinida del catálogo."
+    )
+
+class PruebaDeRutaForm(forms.ModelForm):
+    class Meta:
+        model = OrdenDeTrabajo
+        fields = ['prueba_de_ruta_realizada', 'conclusion_prueba_de_ruta']
+        widgets = {
+            'prueba_de_ruta_realizada': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'conclusion_prueba_de_ruta': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Observaciones y conclusiones de la prueba de ruta...'}),
+        }
+
+class SolicitudTareaForm(forms.Form):
+    descripcion_solicitud = forms.CharField(
+        label="Descripción de la Tarea Solicitada",
+        widget=forms.Textarea(attrs={'rows': 4, 'placeholder': 'Describa la nueva tarea o el problema encontrado...'}),
+        required=True
     )
 
 class ManualInsumoForm(forms.Form): # <<-- CAMBIO AQUÍ: de forms.ModelForm a forms.Form
