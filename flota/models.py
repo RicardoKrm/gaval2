@@ -306,6 +306,11 @@ class OrdenDeTrabajo(models.Model):
     responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ots_responsable')
     sintomas_reportados = models.TextField(blank=True, null=True)
     diagnostico_evaluacion = models.TextField(blank=True, null=True)
+
+    # Nuevos campos para OT Evaluativa
+    prueba_de_ruta_realizada = models.BooleanField(default=False, help_text="Marcar si se realizó una prueba de ruta para validar los síntomas.")
+    conclusion_prueba_de_ruta = models.TextField(blank=True, null=True, help_text="Conclusiones y observaciones de la prueba de ruta.")
+
     motivo_pausa = models.CharField(max_length=50, choices=MOTIVO_PAUSA_CHOICES, blank=True, null=True)
     notas_pausa = models.TextField(blank=True, null=True)
     tareas_realizadas = models.ManyToManyField(Tarea, blank=True, related_name='ordenes_de_trabajo')

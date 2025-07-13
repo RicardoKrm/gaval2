@@ -329,6 +329,8 @@ def orden_trabajo_detail(request, pk):
     pausar_form = PausarOTForm(instance=ot)
     diagnostico_form = DiagnosticoEvaluacionForm(instance=ot)
     asignar_tarea_form = AsignarTareaForm()
+    solicitud_tarea_form = SolicitudTareaForm()
+    prueba_ruta_form = PruebaDeRutaForm(instance=ot)
 
     context = {
         'ot': ot,
@@ -345,6 +347,8 @@ def orden_trabajo_detail(request, pk):
         'pausar_form': pausar_form,
         'diagnostico_form': diagnostico_form,
         'asignar_tarea_form': asignar_tarea_form,
+        'solicitud_tarea_form': solicitud_tarea_form,
+        'prueba_ruta_form': prueba_ruta_form,
     }
     return render(request, 'flota/orden_trabajo_detail.html', context)
 
@@ -856,7 +860,15 @@ def eliminar_tarea_ot(request, ot_pk, tarea_pk):
     tarea = get_object_or_404(Tarea, pk=tarea_pk)
     if request.method == 'POST':
         ot.tareas_realizadas.remove(tarea)
-        ot.save() 
+        ot.save()
+
+        # Notificación
+        mensaje = f"Tarea '{tarea.descripcion}' eliminada de la OT #{ot.folio} por {request.user.username}."
+        destinatarios = User.objects.filter(Q(groups__name='Supervisor') | Q(groups__name='Administrador')).distinct()
+        for user in destinatarios:
+            if user != request.user:
+                Notificacion.objects.create(usuario_destino=user, mensaje=mensaje, url_destino=reverse('ot_detail', args=[ot_pk]))
+
         messages.warning(request, f'Tarea "{tarea.descripcion}" eliminada de la OT.')
     return redirect('ot_detail', pk=ot_pk)
 
@@ -879,15 +891,23 @@ def eliminar_insumo_ot(request, ot_pk, detalle_pk):
             if detalle.repuesto_inventario:
                 MovimientoStock.objects.create(
                     repuesto=detalle.repuesto_inventario,
-                    tipo_movimiento='AJUSTE_POSITIVO', # O 'ENTRADA' si prefieres esa clasificación
-                    cantidad=detalle.cantidad, # Cantidad positiva para devolver al stock
+                    tipo_movimiento='AJUSTE_POSITIVO',
+                    cantidad=detalle.cantidad,
                     usuario_responsable=request.user,
-                    orden_de_trabajo=ot, # Asociar al OT para trazabilidad
+                    orden_de_trabajo=ot,
                     notas=f"Devolución de stock por eliminación de insumo '{item_nombre}' de OT #{ot.folio}"
                 )
 
             detalle.delete()
-            ot.save() # Para recalcular costos
+            ot.save()
+
+            # Notificación
+            mensaje = f"Insumo '{item_nombre}' eliminado de la OT #{ot.folio} por {request.user.username}."
+            destinatarios = User.objects.filter(Q(groups__name='Supervisor') | Q(groups__name='Administrador')).distinct()
+            for user in destinatarios:
+                if user != request.user:
+                    Notificacion.objects.create(usuario_destino=user, mensaje=mensaje, url_destino=reverse('ot_detail', args=[ot_pk]))
+
             messages.warning(request, f'"{item_nombre}" eliminado de la OT. Stock devuelto al inventario si aplica.')
             
     return redirect('ot_detail', pk=ot_pk)
@@ -1617,9 +1637,25 @@ def asignar_personal_ot(request, ot_pk):
         if form.is_valid():
             form.save()
             responsable = form.cleaned_data.get('responsable')
-            ayudantes = ", ".join([user.username for user in form.cleaned_data.get('personal_asignado').all()])
-            descripcion = f"Se asignó a {responsable.username if responsable else 'nadie'} como responsable. Ayudantes: {ayudantes or 'ninguno'}."
-            HistorialOT.objects.create(orden_de_trabajo=ot, usuario=request.user, tipo_evento='ASIGNACION', descripcion=descripcion)
+            ayudantes_qs = form.cleaned_data.get('personal_asignado')
+            ayudantes = ", ".join([user.username for user in ayudantes_qs.all()])
+            descripcion_historial = f"Se asignó a {responsable.username if responsable else 'nadie'} como responsable. Ayudantes: {ayudantes or 'ninguno'}."
+            HistorialOT.objects.create(orden_de_trabajo=ot, usuario=request.user, tipo_evento='ASIGNACION', descripcion=descripcion_historial)
+
+            # Notificación
+            mensaje = f"Se reasignó personal en la OT #{ot.folio} por {request.user.username}."
+            destinatarios = User.objects.filter(Q(groups__name='Supervisor') | Q(groups__name='Administrador')).distinct()
+
+            # También notificar al personal involucrado (nuevo y anterior si es posible)
+            if responsable:
+                destinatarios |= User.objects.filter(pk=responsable.pk)
+            if ayudantes_qs.exists():
+                destinatarios |= ayudantes_qs
+
+            for user in destinatarios.distinct():
+                if user != request.user:
+                    Notificacion.objects.create(usuario_destino=user, mensaje=mensaje, url_destino=reverse('ot_detail', args=[ot_pk]))
+
             messages.success(request, '¡Personal asignado con éxito!')
     return redirect('ot_detail', pk=ot_pk)
 
@@ -1657,6 +1693,56 @@ def cerrar_ot_mecanico(request, ot_pk):
             messages.info(request, f"OT #{ot.folio} marcada como 'Cerrada por Mecánico'.")
             # Lógica de notificación omitida por brevedad
     return redirect('ot_list')
+
+@login_required
+def solicitar_nueva_tarea_ot(request, ot_pk):
+    ot = get_object_or_404(OrdenDeTrabajo, pk=ot_pk)
+    if request.method == 'POST':
+        form = SolicitudTareaForm(request.POST)
+        if form.is_valid():
+            descripcion = form.cleaned_data['descripcion_solicitud']
+
+            # Crear notificación para supervisores y administradores
+            destinatarios = User.objects.filter(
+                Q(groups__name='Supervisor') | Q(groups__name='Administrador')
+            ).distinct()
+
+            if destinatarios.exists():
+                mensaje_notificacion = f"El mecánico {request.user.username} solicita una nueva tarea en la OT #{ot.folio}: '{descripcion}'"
+                url_notificacion = reverse('ot_detail', args=[ot.pk])
+
+                notificaciones_a_crear = [
+                    Notificacion(usuario_destino=dest, mensaje=mensaje_notificacion, url_destino=url_notificacion)
+                    for dest in destinatarios
+                ]
+                Notificacion.objects.bulk_create(notificaciones_a_crear)
+                messages.success(request, "Solicitud de nueva tarea enviada a los supervisores.")
+            else:
+                messages.warning(request, "Solicitud registrada, pero no se encontraron supervisores para notificar.")
+
+            HistorialOT.objects.create(
+                orden_de_trabajo=ot,
+                usuario=request.user,
+                tipo_evento='COMENTARIO',
+                descripcion=f"Solicitó nueva tarea: {descripcion}"
+            )
+    return redirect('ot_detail', pk=ot_pk)
+
+@login_required
+def guardar_prueba_de_ruta_ot(request, ot_pk):
+    ot = get_object_or_404(OrdenDeTrabajo, pk=ot_pk)
+    if request.method == 'POST':
+        form = PruebaDeRutaForm(request.POST, instance=ot)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Los detalles de la prueba de ruta han sido guardados.")
+            HistorialOT.objects.create(
+                orden_de_trabajo=ot,
+                usuario=request.user,
+                tipo_evento='MODIFICACION',
+                descripcion="Se actualizaron los datos de la prueba de ruta."
+            )
+    return redirect('ot_detail', pk=ot_pk)
 
 @login_required
 def export_vehiculos_csv(request):
