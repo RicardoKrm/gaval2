@@ -9,7 +9,7 @@ import dj_database_url
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-#load_dotenv(dotenv_path=os.path.join(BASE_DIR, '.env'))
+load_dotenv(dotenv_path=os.path.join(BASE_DIR, '.env'))
 
 
 # --- CONFIGURACIÓN BASE ---
