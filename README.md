@@ -45,16 +45,16 @@ Es fundamental crear un usuario y una base de datos dedicada para el proyecto an
 
 ```sql
 -- (Opcional) Borra la base de datos y el usuario si existen de una instalación anterior
--- DROP DATABASE IF EXISTS gavaldb_utf8;
--- DROP USER IF EXISTS gaval;
+-- DROP DATABASE IF EXISTS xxxxx;
+-- DROP USER IF EXISTS xxxxx;
 
 -- 1. Crea el usuario con la contraseña que usarás en el archivo .env
-CREATE USER gaval WITH PASSWORD 'Karma627';
+CREATE USER gaval WITH PASSWORD 'xxxxxx';
 
 -- 2. Crea la base de datos con el encoding y propietario correctos
-CREATE DATABASE gavaldb_utf8
+CREATE DATABASE xxxxxx
     WITH
-    OWNER = gaval
+    OWNER = xxxxx
     ENCODING = 'UTF8'
     LC_COLLATE = 'Spanish_Spain.1252' -- Ajusta a la localización de tu sistema si es diferente
     LC_CTYPE = 'Spanish_Spain.1252'   -- Ajusta a la localización de tu sistema si es diferente
@@ -95,7 +95,7 @@ DEBUG=True
 
 # URL de conexión a la base de datos PostgreSQL
 # Asegúrate de que el usuario, contraseña, host, puerto y nombre de la BD coincidan con el Paso 2
-DATABASE_URL='postgresql://gaval:Karma627@localhost:5432/gavaldb_utf8'
+DATABASE_URL='postgresql://gaval:xxxx@localhost:xxxxx'
 ```
 
 ### Paso 5: Ejecutar las Migraciones
