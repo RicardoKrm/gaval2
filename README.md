@@ -1,150 +1,171 @@
 # TMS GAVAL - Sistema de Gestión de Flotas Multi-Tenant
 
-Este proyecto es una aplicación web desarrollada en Django para la gestión integral de flotas de vehículos, diseñada con una arquitectura multi-tenant que permite a múltiples empresas utilizar el sistema de forma aislada y segura.
+## 1. Resumen del Proyecto
 
-## Características Principales
+Este proyecto es una aplicación web integral desarrollada en Django para la gestión de flotas de vehículos. Su principal característica es una **arquitectura multi-tenant**, que permite a múltiples empresas (clientes) utilizar una única instancia de la aplicación de forma completamente segura y aislada, cada una con su propia base de datos, usuarios y datos.
 
-*   **Arquitectura Multi-Tenant:** Cada empresa cliente opera en su propio esquema de base de datos, garantizando total aislamiento de los datos.
-*   **Gestión de Flota:** Seguimiento detallado de vehículos, incluyendo kilometraje, mantenimientos, y estado general.
-*   **Órdenes de Trabajo (OTs):** Creación y seguimiento de OTs preventivas, correctivas y evaluativas.
-*   **Control de Inventario:** Gestión de repuestos, stock y movimientos asociados a las OTs.
-*   **Programación y Planificación:** Calendario interactivo para programar OTs y asignar recursos.
-*   **Dashboards y KPIs:** Paneles de control visuales para el análisis de rendimiento de la flota, costos y RR.HH.
-*   **Control de Combustible:** Registro y análisis de cargas de combustible para calcular el rendimiento.
-*   **Sistema de Notificaciones:** Alertas para eventos importantes dentro de la aplicación.
-*   **Gestión de Usuarios y Roles:** Sistema de permisos basado en roles (Administrador, Supervisor, Mecánico).
+El sistema está diseñado no solo para registrar información, sino para ser una herramienta proactiva de gestión, optimización y análisis a través de sus diversos módulos.
 
 ---
 
-## Guía de Instalación y Prueba Local
+## 2. Guía de Instalación Local Completa
 
-Sigue estos pasos para configurar y ejecutar el proyecto en tu entorno de desarrollo local.
+Esta guía detalla todos los pasos necesarios para configurar el proyecto en un entorno de desarrollo local desde cero.
 
-### Requisitos Previos
+### 2.1. Requisitos Previos
 
-*   Python 3.10 o superior.
-*   PostgreSQL (versión 12 o superior recomendada).
-*   Git.
+Asegúrate de tener el siguiente software instalado en tu sistema:
+*   **Python:** Versión 3.10 o superior.
+*   **PostgreSQL:** Versión 12 o superior.
+*   **Git:** Para clonar el repositorio.
+*   **Redis:** (Opcional para desarrollo básico, pero **requerido** para que funcionen las tareas asíncronas y el caché).
 
-### Paso 1: Clonar el Repositorio
+### 2.2. Configuración de la Base de Datos
 
-Si aún no tienes el proyecto, clónalo desde el repositorio. Asegúrate de estar en la rama correcta que contiene los últimos cambios.
+Antes de tocar el código de Django, es fundamental preparar la base de datos.
 
-```bash
-# Reemplaza <URL_DEL_REPOSITORIO> con la URL real de tu repositorio Git
-git clone <URL_DEL_REPOSITORIO> -b feature/full-refactor-and-features gaval-tms
-cd gaval-tms
-```
+1.  Abre una terminal de `psql` o una herramienta gráfica como pgAdmin.
+2.  Ejecuta los siguientes comandos SQL para crear el usuario y la base de datos. Reemplaza `'Karma627'` si vas a usar una contraseña diferente.
 
-### Paso 2: Configurar la Base de Datos en PostgreSQL
+    ```sql
+    -- (Opcional) Borra la base de datos y el usuario si ya existen
+    -- DROP DATABASE IF EXISTS gavaldb_utf8;
+    -- DROP USER IF EXISTS gaval;
 
-Es fundamental crear un usuario y una base de datos dedicada para el proyecto antes de continuar.
+    -- 1. Crea el usuario que gestionará la base de datos
+    CREATE USER gaval WITH PASSWORD 'Karma627';
 
-1.  Abre una terminal de `psql` o utiliza una herramienta gráfica como pgAdmin.
-2.  Ejecuta los siguientes comandos SQL:
+    -- 2. Crea la base de datos principal del proyecto
+    CREATE DATABASE gavaldb_utf8
+        WITH
+        OWNER = gaval
+        ENCODING = 'UTF8'
+        -- Asegúrate de que la localización coincida con la de tu sistema
+        LC_COLLATE = 'Spanish_Spain.1252' -- Windows
+        -- LC_COLLATE = 'es_ES.UTF-8' -- Linux/macOS
+        LC_CTYPE = 'Spanish_Spain.1252' -- Windows
+        -- LC_CTYPE = 'es_ES.UTF-8' -- Linux/macOS
+        TABLESPACE = pg_default
+        CONNECTION LIMIT = -1;
+    ```
 
-```sql
--- (Opcional) Borra la base de datos y el usuario si existen de una instalación anterior
--- DROP DATABASE IF EXISTS xxxxx;
--- DROP USER IF EXISTS xxxxx;
+### 2.3. Configuración del Proyecto
 
--- 1. Crea el usuario con la contraseña que usarás en el archivo .env
-CREATE USER gaval WITH PASSWORD 'xxxxxx';
+1.  **Clona el Repositorio:**
+    ```bash
+    # Reemplaza <URL_DEL_REPOSITORIO> con la URL real
+    git clone <URL_DEL_REPOSITORIO> gaval-tms
+    cd gaval-tms
+    ```
 
--- 2. Crea la base de datos con el encoding y propietario correctos
-CREATE DATABASE xxxxxx
-    WITH
-    OWNER = xxxxx
-    ENCODING = 'UTF8'
-    LC_COLLATE = 'Spanish_Spain.1252' -- Ajusta a la localización de tu sistema si es diferente
-    LC_CTYPE = 'Spanish_Spain.1252'   -- Ajusta a la localización de tu sistema si es diferente
-    TABLESPACE = pg_default
-    CONNECTION LIMIT = -1;
-```
-**Nota:** Si no estás en Windows, tu localización podría ser `es_CL.UTF-8` o similar.
+2.  **Crea y Activa un Entorno Virtual:**
+    ```bash
+    # Crea el entorno
+    python -m venv .venv
 
-### Paso 3: Configurar el Entorno Virtual y Dependencias
+    # Actívalo (el comando varía según tu sistema operativo)
+    # En Windows:
+    .\.venv\Scripts\activate
+    # En macOS/Linux:
+    # source .venv/bin/activate
+    ```
 
-Aislaremos las dependencias del proyecto en un entorno virtual.
+3.  **Instala las Dependencias:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-```bash
-# 1. Crea un nuevo entorno virtual en el directorio del proyecto
-python -m venv .venv
+4.  **Configura el Archivo de Entorno (`.env`):**
+    Crea un archivo llamado `.env` en la raíz del proyecto y añade el siguiente contenido. **Asegúrate de que los datos de `DATABASE_URL` coincidan con los que creaste en el paso 2.2.**
 
-# 2. Activa el entorno virtual
-#    En Windows (cmd/powershell):
-.\.venv\Scripts\activate
-#    En macOS/Linux:
-#    source .venv/bin/activate
+    ```
+    # Clave secreta de Django (puedes generar una nueva)
+    SECRET_KEY='django-insecure-una-clave-secreta-muy-larga-y-dificil-de-adivinar'
 
-# 3. Instala todas las dependencias del proyecto
-pip install -r requirements.txt
-```
+    # Activar el modo debug solo para desarrollo
+    DEBUG=True
 
-### Paso 4: Configurar el Archivo de Entorno (`.env`)
+    # URL de conexión a la base de datos PostgreSQL
+    DATABASE_URL='postgresql://gaval:Karma627@localhost:5432/gavaldb_utf8'
 
-Crea un archivo llamado `.env` en la raíz del proyecto. Este archivo contendrá las variables de configuración sensibles.
+    # URL de conexión a Redis (usada por Celery y el caché)
+    # Usa la base de datos 0 para Celery y la 1 para el caché, es una buena práctica.
+    CELERY_BROKER_URL='redis://localhost:6379/0'
+    CELERY_RESULT_BACKEND='redis://localhost:6379/0'
+    REDIS_URL='redis://localhost:6379/1'
+    ```
 
-Copia y pega el siguiente contenido en tu archivo `.env`:
-```
-# Clave secreta de Django (puedes generar una nueva)
-SECRET_KEY='una-clave-secreta-muy-larga-y-dificil-de-adivinar-para-produccion'
+### 2.4. Inicialización de la Aplicación
 
-# Activar el modo debug solo para desarrollo
-DEBUG=True
+Estos comandos prepararán la base de datos de Django y crearán tu primer cliente (tenant).
 
-# URL de conexión a la base de datos PostgreSQL
-# Asegúrate de que el usuario, contraseña, host, puerto y nombre de la BD coincidan con el Paso 2
-DATABASE_URL='postgresql://gaval:xxxx@localhost:xxxxx'
-```
+1.  **Ejecuta las Migraciones:**
+    Este comando creará todas las tablas necesarias en el esquema `public` (el esquema principal).
+    ```bash
+    python manage.py migrate_schemas --shared
+    ```
 
-### Paso 5: Ejecutar las Migraciones
+2.  **Crea el Primer Tenant:**
+    Vamos a crear una empresa de ejemplo llamada "Pulser".
+    ```bash
+    python manage.py create_tenant --schema_name=pulser --domain_url=pulser.localhost --tenant_name="Empresa Pulser"
+    ```
+    *   `--schema_name`: Identificador técnico en la BD.
+    *   `--domain_url`: El subdominio que usarás para acceder (`pulser.localhost` para desarrollo).
+    *   `--tenant_name`: El nombre comercial de la empresa.
 
-Este comando preparará la base de datos, aplicando las migraciones al esquema público (`public`).
+3.  **Crea un Superusuario para el Tenant:**
+    Este será el primer usuario administrador para la "Empresa Pulser".
+    ```bash
+    python manage.py create_tenant_superuser --schema_name=pulser --username=admin_pulser --email=admin@pulser.com
+    ```
+    El sistema te pedirá que introduzcas y confirmes una contraseña.
 
-```bash
-python manage.py migrate_schemas --shared
-```
+4.  **Crea un Superusuario para el Sistema (Dueño del Proyecto):**
+    Este usuario es para el **Panel de Super Administrador** y no pertenece a ningún tenant.
+    ```bash
+    python manage.py createsuperuser
+    ```
+    Sigue las instrucciones para crear tu usuario administrador global.
 
-### Paso 6: Crear tu Primer Tenant (Empresa Cliente)
+### 2.5. Ejecución de los Servicios
 
-Ahora, registraremos la primera empresa en el sistema.
+Para que todas las funcionalidades del sistema operen, necesitas ejecutar 3 procesos, cada uno en su **propia terminal**.
 
-```bash
-# Puedes cambiar los valores según tus necesidades
-python manage.py create_tenant --schema_name=pulser --domain_url=pulser.localhost --tenant_name="Empresa Pulser"
-```
-*   `--schema_name`: Identificador técnico único para la empresa en la BD (ej. `pulser`).
-*   `--domain_url`: El subdominio que usarás para acceder localmente (ej. `pulser.localhost`).
-*   `--tenant_name`: El nombre comercial de la empresa (ej. `Empresa Pulser`).
+1.  **Terminal 1: Servidor de Django:**
+    ```bash
+    # Asegúrate de que tu entorno virtual esté activado
+    python manage.py runserver
+    ```
+    Esto inicia la aplicación web, normalmente en `http://localhost:8000`.
 
-El sistema clonará la estructura del esquema público y aplicará las migraciones. Si encuentras un error de "tabla ya existe", ejecuta `python manage.py migrate_schemas --fake-initial` para solucionarlo.
+2.  **Terminal 2: Worker de Celery:**
+    Este proceso se encarga de ejecutar las tareas en segundo plano (reportes, alertas, etc.).
+    ```bash
+    # Asegúrate de que tu entorno virtual esté activado
+    celery -A tms_gaval worker -l info
+    ```
 
-### Paso 7: Crear un Superusuario para el Tenant
+3.  **Terminal 3: Celery Beat (Planificador):**
+    Este proceso se encarga de decirle al worker *cuándo* ejecutar las tareas periódicas.
+    ```bash
+    # Asegúrate de que tu entorno virtual esté activado
+    celery -A tms_gaval beat -l info
+    ```
 
-Para poder iniciar sesión y administrar el tenant, crea un usuario administrador dentro de él.
+### 2.6. ¡A Probar!
 
-```bash
-python manage.py create_tenant_superuser --schema_name=pulser --username=admin_pulser --email=admin@pulser.com
-```
-El sistema te pedirá que introduzcas y confirmes una contraseña para este nuevo usuario.
+*   **Aplicación Principal:**
+    1.  Abre tu navegador y ve a `http://localhost:8000`.
+    2.  Haz clic en "Iniciar Sesión".
+    3.  Usa:
+        *   Identificador de Empresa: `pulser.localhost`
+        *   Usuario: `admin_pulser`
+        *   Contraseña: la que creaste.
+    4.  Serás redirigido a `http://pulser.localhost:8000/dashboard/`.
 
-### Paso 8: Ejecutar el Servidor de Desarrollo
+*   **Admin de Tenant:**
+    *   Ve a `http://pulser.localhost:8000/admin/` e inicia sesión con `admin_pulser`.
 
-¡Todo está listo para lanzar la aplicación!
-
-```bash
-python manage.py runserver
-```
-
-### Paso 9: Probar en el Navegador
-
-1.  **Accede a la Landing Page:** Abre tu navegador y ve a `http://localhost:8000`.
-2.  **Accede a la Página de Login:** Haz clic en el botón "Iniciar Sesión".
-3.  **Inicia Sesión con tus credenciales de tenant:**
-    *   **Identificador de Empresa:** `pulser.localhost`
-    *   **Nombre de Usuario:** `admin_pulser`
-    *   **Contraseña:** La contraseña que creaste en el paso 7.
-4.  **Verificación:** Tras un inicio de sesión exitoso, serás redirigido al dashboard de la aplicación en `http://pulser.localhost:8000/dashboard/`.
-
-¡Felicidades! El sistema está funcionando en tu entorno local.
+*   **Admin Global (para el dueño del proyecto):**
+    *   Ve a `http://localhost:8000/admin/` e inicia sesión con el superusuario que creaste con `createsuperuser`.

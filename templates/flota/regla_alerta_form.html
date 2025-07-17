@@ -1,0 +1,119 @@
+{% extends "flota/base.html" %}
+
+{% block title %}{% if regla %}Editar Regla de Alerta{% else %}Crear Nueva Regla de Alerta{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-text-primary">{% if regla %}Editar Regla de Alerta{% else %}Crear Nueva Regla de Alerta{% endif %}</h1>
+            {% if regla %}<p class="text-text-secondary">{{ regla.nombre }}</p>{% endif %}
+        </div>
+        <a href="{% url 'regla_alerta_list' %}" class="btn-secondary !text-sm">
+            <i class="fas fa-times mr-2"></i>Cancelar
+        </a>
+    </div>
+
+    <div class="card-style">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre de la Regla</label>
+                {{ form.nombre }}
+                <p class="text-xs text-text-secondary mt-1">Un nombre descriptivo y único para identificar esta alerta.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="{{ form.descripcion.id_for_label }}" class="form-label">Descripción</label>
+                {{ form.descripcion }}
+            </div>
+
+            <hr class="border-input-border my-6">
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="form-group">
+                    <label for="{{ form.metrica.id_for_label }}" class="form-label">Métrica a Vigilar</label>
+                    {{ form.metrica }}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.operador.id_for_label }}" class="form-label">Condición</label>
+                    {{ form.operador }}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.valor_umbral.id_for_label }}" class="form-label">Valor Umbral</label>
+                    {{ form.valor_umbral }}
+                </div>
+            </div>
+
+            <div class="form-group" id="tipo-falla-container" style="display: none;">
+                <label for="{{ form.tipo_falla_asociada.id_for_label }}" class="form-label">Tipo de Falla Específica</label>
+                {{ form.tipo_falla_asociada }}
+                <p class="text-xs text-text-secondary mt-1">Este campo es obligatorio cuando la métrica es "Frecuencia de Falla".</p>
+            </div>
+
+            <hr class="border-input-border my-6">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div class="form-group">
+                    <label for="{{ form.periodo_dias.id_for_label }}" class="form-label">Período de Evaluación (días)</label>
+                    {{ form.periodo_dias }}
+                    <p class="text-xs text-text-secondary mt-1">La métrica se calculará usando los datos de los últimos X días.</p>
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.modelo_vehiculo.id_for_label }}" class="form-label">Aplicar a Modelos de Vehículo (Opcional)</label>
+                    {{ form.modelo_vehiculo }}
+                    <p class="text-xs text-text-secondary mt-1">{{ form.modelo_vehiculo.help_text }}</p>
+                </div>
+            </div>
+
+            <div class="form-group flex items-center">
+                {{ form.activa }}
+                <label for="{{ form.activa.id_for_label }}" class="ml-2 form-label">Regla Activa</label>
+            </div>
+
+            {% if form.errors %}
+                <div class="p-4 rounded-md bg-red-500/20 text-red-300 text-sm">
+                    <p class="font-bold">Por favor, corrige los siguientes errores:</p>
+                    <ul class="list-disc pl-5 mt-2">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ field|title }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <div class="pt-4">
+                <button type="submit" class="btn-primary w-full justify-center">
+                    <i class="fas fa-save mr-2"></i>Guardar Regla
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+$(document).ready(function() {
+    const metricaSelect = $('#{{ form.metrica.id_for_label }}');
+    const tipoFallaContainer = $('#tipo-falla-container');
+
+    function toggleTipoFalla() {
+        if (metricaSelect.val() === 'FRECUENCIA_FALLA') {
+            tipoFallaContainer.slideDown();
+        } else {
+            tipoFallaContainer.slideUp();
+        }
+    }
+
+    // Ejecutar al cargar la página
+    toggleTipoFalla();
+
+    // Ejecutar al cambiar la métrica
+    metricaSelect.on('change', toggleTipoFalla);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "flota/base.html" %}
+
+{% block title %}Confirmar Eliminación de Regla{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto text-center">
+    <div class="card-style">
+        <h1 class="text-2xl font-bold text-text-primary mb-4">Confirmar Eliminación</h1>
+        <p class="text-text-secondary mb-6">
+            ¿Estás seguro de que quieres eliminar la regla de alerta "<strong>{{ regla.nombre }}</strong>"?
+        </p>
+        <p class="text-sm text-red-400 mb-6">Esta acción no se puede deshacer.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="flex justify-center gap-4">
+                <a href="{% url 'regla_alerta_list' %}" class="btn-secondary">Cancelar</a>
+                <button type="submit" class="btn-primary !bg-red-600 hover:!bg-red-700">Sí, Eliminar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

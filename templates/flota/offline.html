@@ -1,0 +1,20 @@
+{% extends "flota/base.html" %}
+
+{% block title %}Sin Conexión{% endblock %}
+
+{% block content %}
+<div class="text-center py-20">
+    <i class="fas fa-wifi-slash fa-5x text-red-500 mb-4"></i>
+    <h1 class="text-4xl font-bold text-text-primary">Estás sin conexión</h1>
+    <p class="text-text-secondary mt-2">
+        Parece que no tienes acceso a internet en este momento.
+        <br>
+        Algunas funcionalidades podrían no estar disponibles hasta que recuperes la conexión.
+    </p>
+    <p class="mt-6">
+        <button onclick="window.location.reload()" class="btn-primary">
+            <i class="fas fa-redo-alt mr-2"></i>Reintentar
+        </button>
+    </p>
+</div>
+{% endblock %}

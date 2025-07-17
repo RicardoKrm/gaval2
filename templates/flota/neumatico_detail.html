@@ -1,0 +1,188 @@
+{% extends "flota/base.html" %}
+
+{% block title %}Detalle del Neumático {{ neumatico.dot }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Encabezado -->
+    <div>
+        <a href="{% url 'neumatico_list' %}" class="text-sm text-text-secondary hover:text-accent transition-colors"><i class="fas fa-arrow-left mr-2"></i>Volver al Inventario</a>
+        <h1 class="text-3xl font-bold text-text-primary mt-1">Hoja de Vida del Neumático</h1>
+        <p class="text-lg text-text-secondary font-mono">{{ neumatico.dot }}</p>
+    </div>
+
+    <!-- Layout principal -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Columna Izquierda: Información y Acciones -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="card-style">
+                <h2 class="card-header">Información General</h2>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between"><span>Marca/Modelo:</span> <strong class="text-right">{{ neumatico.marca }} {{ neumatico.modelo }}</strong></div>
+                    <div class="flex justify-between"><span>Medida:</span> <strong class="text-right">{{ neumatico.medida }}</strong></div>
+                    <div class="flex justify-between"><span>Fecha Compra:</span> <strong class="text-right">{{ neumatico.fecha_compra|date:"d/m/Y" }}</strong></div>
+                    <div class="flex justify-between"><span>Costo:</span> <strong class="text-right">${{ neumatico.costo|floatformat:2 }}</strong></div>
+                </div>
+                <a href="{% url 'neumatico_update' pk=neumatico.pk %}" class="btn-secondary w-full justify-center mt-4 !text-sm">Editar Información</a>
+            </div>
+
+            <div class="card-style">
+                <h2 class="card-header">Estado y Ubicación Actual</h2>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span>Estado:</span>
+                        <strong class="text-right">
+                             <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full
+                                {% if neumatico.estado == 'MONTADO' %} bg-blue-500/20 text-blue-300
+                                {% elif neumatico.estado == 'EN_BODEGA' %} bg-green-500/20 text-green-300
+                                {% elif neumatico.estado == 'EN_RECAUCHAJE' %} bg-yellow-500/20 text-yellow-300
+                                {% else %} bg-red-500/20 text-red-300 {% endif %}">
+                                {{ neumatico.get_estado_display }}
+                            </span>
+                        </strong>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Ubicación:</span>
+                        <strong class="text-right">
+                            {% if neumatico.vehiculo_actual %}
+                                {{ neumatico.vehiculo_actual.numero_interno }} - {{ neumatico.posicion_actual }}
+                            {% else %}
+                                En Bodega
+                            {% endif %}
+                        </strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-style">
+                <h2 class="card-header">Desgaste y Rendimiento</h2>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between"><span>KM Acumulados:</span> <strong>{{ neumatico.kilometraje_acumulado }} km</strong></div>
+                    <div class="flex justify-between"><span>Profundidad Actual:</span> <strong>{{ neumatico.profundidad_surco_actual_mm }} mm</strong></div>
+                    <div class="flex justify-between"><span>Límite de Desgaste:</span> <strong class="text-red-400">{{ neumatico.profundidad_surco_limite_mm }} mm</strong></div>
+                </div>
+                 {% if neumatico.profundidad_surco_actual_mm <= neumatico.profundidad_surco_limite_mm %}
+                <div class="mt-4 p-2 rounded-md bg-red-500/20 text-red-300 text-sm text-center font-bold">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>¡Neumático ha llegado al límite de desgaste!
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Formularios de Acción -->
+            <div class="card-style">
+                 <h2 class="card-header">Acciones Rápidas</h2>
+                 <div class="space-y-4">
+                    <button type="button" class="btn-primary w-full justify-center" onclick="openModal('montajeModal')">
+                        <i class="fas fa-truck-pickup mr-2"></i> {% if neumatico.estado == 'MONTADO' %}Registrar Desmontaje/Rotación{% else %}Registrar Montaje{% endif %}
+                    </button>
+                     <button type="button" class="btn-primary w-full justify-center !bg-green-600 hover:!bg-green-700" onclick="openModal('inspeccionModal')">
+                        <i class="fas fa-search-plus mr-2"></i>Registrar Inspección
+                    </button>
+                 </div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Historiales -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="card-style">
+                <h2 class="card-header">Historial de Montajes y Rotaciones</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                        <thead><tr><th class="table-header">Acción</th><th class="table-header">Vehículo</th><th class="table-header">Posición</th><th class="table-header">KM Vehículo</th><th class="table-header">Fecha</th><th class="table-header">Responsable</th></tr></thead>
+                        <tbody>
+                            {% for montaje in historial_montajes %}
+                            <tr>
+                                <td class="table-cell">{{ montaje.get_accion_display }}</td>
+                                <td class="table-cell">{{ montaje.vehiculo.numero_interno }}</td>
+                                <td class="table-cell">{{ montaje.posicion }}</td>
+                                <td class="table-cell">{{ montaje.kilometraje_vehiculo }}</td>
+                                <td class="table-cell">{{ montaje.fecha|date:"d/m/Y H:i" }}</td>
+                                <td class="table-cell">{{ montaje.usuario_responsable.username|default:"N/A" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="6" class="text-center py-4 text-text-secondary">No hay historial de montajes.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card-style">
+                <h2 class="card-header">Historial de Inspecciones</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full">
+                         <thead><tr><th class="table-header">Fecha</th><th class="table-header">Profundidad (mm)</th><th class="table-header">Presión (PSI)</th><th class="table-header">Inspector</th></tr></thead>
+                        <tbody>
+                            {% for inspeccion in inspecciones %}
+                            <tr>
+                                <td class="table-cell">{{ inspeccion.fecha_inspeccion|date:"d/m/Y H:i" }}</td>
+                                <td class="table-cell">{{ inspeccion.profundidad_surco_mm }}</td>
+                                <td class="table-cell">{{ inspeccion.presion_psi }}</td>
+                                <td class="table-cell">{{ inspeccion.inspector.username|default:"N/A" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-4 text-text-secondary">No hay inspecciones registradas.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales -->
+<div id="montajeModal" class="modal-backdrop">
+    <div class="modal-content">
+        <h3 class="modal-title">Registrar {% if neumatico.estado == 'MONTADO' %}Desmontaje/Rotación{% else %}Montaje{% endif %}</h3>
+        <p class="text-sm text-text-secondary mb-4">
+            {% if neumatico.estado == 'MONTADO' %}
+            Al registrar un nuevo montaje, el sistema primero registrará un desmontaje automático del vehículo y posición actual.
+            {% else %}
+            Se cambiará el estado del neumático a "Montado" y se asociará al vehículo y posición seleccionados.
+            {% endif %}
+        </p>
+        <form action="{% url 'registrar_montaje' neumatico_pk=neumatico.pk %}" method="post" class="space-y-4">
+            {% csrf_token %}
+            {{ montaje_form.as_p }}
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeModal('montajeModal')">Cancelar</button>
+                <button type="submit" class="btn-primary">Guardar Montaje</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="inspeccionModal" class="modal-backdrop">
+    <div class="modal-content">
+        <h3 class="modal-title">Registrar Nueva Inspección</h3>
+        <p class="text-sm text-text-secondary mb-4">La profundidad del surco se actualizará automáticamente en la ficha del neumático.</p>
+        <form action="{% url 'registrar_inspeccion' neumatico_pk=neumatico.pk %}" method="post" class="space-y-4">
+            {% csrf_token %}
+            {{ inspeccion_form.as_p }}
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeModal('inspeccionModal')">Cancelar</button>
+                <button type="submit" class="btn-primary">Guardar Inspección</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.remove('hidden');
+    }
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+    }
+    document.querySelectorAll('.modal-backdrop').forEach(modal => {
+        modal.addEventListener('click', function(event) {
+            if (event.target === this) {
+                closeModal(this.id);
+            }
+        });
+    });
+</script>
+{% endblock %}

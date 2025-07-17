@@ -1,0 +1,64 @@
+{% extends "flota/base.html" %}
+
+{% block title %}Gestión de Reglas de Alerta{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-wrap justify-between items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-text-primary">Gestión de Reglas de Alerta</h1>
+            <p class="text-text-secondary mt-1">Crea y administra reglas para recibir notificaciones proactivas.</p>
+        </div>
+        <a href="{% url 'regla_alerta_create' %}" class="btn-primary"><i class="fas fa-plus-circle mr-2"></i>Crear Nueva Regla</a>
+    </div>
+
+    <div class="card-style">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-input-border">
+                <thead class="bg-bg-secondary">
+                    <tr>
+                        <th scope="col" class="table-header">Nombre de la Regla</th>
+                        <th scope="col" class="table-header">Métrica</th>
+                        <th scope="col" class="table-header">Condición</th>
+                        <th scope="col" class="table-header">Estado</th>
+                        <th scope="col" class="table-header">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-card-base-bg divide-y divide-input-border">
+                    {% for regla in reglas %}
+                    <tr>
+                        <td class="table-cell font-bold">{{ regla.nombre }}</td>
+                        <td class="table-cell">{{ regla.get_metrica_display }}</td>
+                        <td class="table-cell">
+                            {{ regla.get_operador_display }} {{ regla.valor_umbral }}
+                            {% if regla.tipo_falla_asociada %}
+                                (Falla: {{ regla.tipo_falla_asociada.descripcion }})
+                            {% endif %}
+                        </td>
+                        <td class="table-cell">
+                            {% if regla.activa %}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
+                                    <i class="fas fa-check-circle mr-1"></i> Activa
+                                </span>
+                            {% else %}
+                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100">
+                                    <i class="fas fa-times-circle mr-1"></i> Inactiva
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td class="table-cell space-x-2">
+                            <a href="{% url 'regla_alerta_update' pk=regla.pk %}" class="btn-secondary !text-xs !py-1 !px-2">Editar</a>
+                            <a href="{% url 'regla_alerta_delete' pk=regla.pk %}" class="btn-primary !bg-red-600 hover:!bg-red-700 !text-xs !py-1 !px-2">Eliminar</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-10 text-text-secondary">No hay reglas de alerta definidas. ¡Crea la primera!</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

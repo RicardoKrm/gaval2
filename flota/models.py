@@ -319,6 +319,7 @@ class OrdenDeTrabajo(models.Model):
         help_text="Indica si un supervisor autorizó trabajar fuera del tiempo estándar o del horario laboral."
     )
     personal_asignado = models.ManyToManyField(User, related_name='ots_asignadas', blank=True)
+    neumatico_asociado = models.ForeignKey('Neumatico', on_delete=models.SET_NULL, null=True, blank=True, related_name='ordenes_de_trabajo', help_text="Neumático principal afectado en esta OT, si aplica.")
 
     def save(self, *args, **kwargs):
         if not self.folio and not self.pk:
@@ -609,3 +610,276 @@ class Notificacion(models.Model):
 
     def __str__(self):
         return f"Notificación para {self.usuario_destino.username}: {self.mensaje[:30]}..."
+
+# ==============================================================================
+#                         MODELOS DE GESTIÓN DE NEUMÁTICOS
+# ==============================================================================
+
+class Neumatico(models.Model):
+    """
+    Representa un neumático individual con su ciclo de vida.
+    """
+    ESTADO_CHOICES = [
+        ('EN_BODEGA', 'En Bodega'),
+        ('MONTADO', 'Montado'),
+        ('EN_RECAUCHAJE', 'En Recauchaje'),
+        ('DESECHADO', 'Desechado'),
+    ]
+
+    dot = models.CharField(max_length=20, unique=True, help_text="Código DOT único del neumático.")
+    marca = models.CharField(max_length=100)
+    modelo = models.CharField(max_length=100)
+    medida = models.CharField(max_length=50, help_text="Ej: 295/80R22.5")
+
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='EN_BODEGA')
+    fecha_compra = models.DateField()
+    costo = models.DecimalField(max_digits=10, decimal_places=2)
+
+    profundidad_surco_actual_mm = models.DecimalField(max_digits=5, decimal_places=2, help_text="Profundidad del surco en milímetros.")
+    profundidad_surco_limite_mm = models.DecimalField(max_digits=5, decimal_places=2, default=2.0, help_text="Límite de desgaste para alertas.")
+
+    kilometraje_acumulado = models.PositiveIntegerField(default=0)
+
+    # Relación al vehículo donde está montado actualmente (si aplica)
+    vehiculo_actual = models.ForeignKey(Vehiculo, on_delete=models.SET_NULL, null=True, blank=True, related_name='neumaticos_montados')
+    posicion_actual = models.CharField(max_length=50, blank=True, null=True, help_text="Ej: Delantera Izquierda, Trasera Derecha Interior")
+
+    class Meta:
+        verbose_name = "Neumático"
+        verbose_name_plural = "Neumáticos"
+        ordering = ['marca', 'modelo']
+
+    def __str__(self):
+        return f"{self.marca} {self.modelo} ({self.dot})"
+
+class HistorialMontaje(models.Model):
+    """
+    Registra cada vez que un neumático es montado o desmontado de un vehículo.
+    """
+    ACCION_CHOICES = [
+        ('MONTAJE', 'Montaje'),
+        ('DESMONTAJE', 'Desmontaje'),
+    ]
+
+    neumatico = models.ForeignKey(Neumatico, on_delete=models.CASCADE, related_name='historial_montajes')
+    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='historial_montajes_vehiculo')
+
+    accion = models.CharField(max_length=20, choices=ACCION_CHOICES)
+    fecha = models.DateTimeField(default=timezone.now)
+    kilometraje_vehiculo = models.PositiveIntegerField()
+    posicion = models.CharField(max_length=50, help_text="Posición en la que se montó/desmontó el neumático.")
+
+    orden_de_trabajo = models.ForeignKey(OrdenDeTrabajo, on_delete=models.SET_NULL, null=True, blank=True, related_name='montajes_asociados')
+    usuario_responsable = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    notas = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Historial de Montaje"
+        verbose_name_plural = "Historiales de Montaje"
+        ordering = ['-fecha']
+
+    def __str__(self):
+        return f"{self.get_accion_display()} de {self.neumatico.dot} en {self.vehiculo.numero_interno}"
+
+class InspeccionNeumatico(models.Model):
+    """
+    Registra una inspección de un neumático, midiendo su presión y desgaste.
+    """
+    neumatico = models.ForeignKey(Neumatico, on_delete=models.CASCADE, related_name='inspecciones')
+    fecha_inspeccion = models.DateTimeField(default=timezone.now)
+
+    presion_psi = models.PositiveIntegerField(help_text="Presión medida en PSI.")
+    profundidad_surco_mm = models.DecimalField(max_digits=5, decimal_places=2, help_text="Profundidad del surco medida en milímetros.")
+
+    inspector = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    notas = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Inspección de Neumático"
+        verbose_name_plural = "Inspecciones de Neumáticos"
+        ordering = ['-fecha_inspeccion']
+
+    def __str__(self):
+        return f"Inspección de {self.neumatico.dot} el {self.fecha_inspeccion.strftime('%d/%m/%Y')}"
+
+    def save(self, *args, **kwargs):
+        # Al guardar una inspección, actualizamos la profundidad del surco en el neumático principal
+        super().save(*args, **kwargs)
+        if self.profundidad_surco_mm and self.neumatico.profundidad_surco_actual_mm != self.profundidad_surco_mm:
+            self.neumatico.profundidad_surco_actual_mm = self.profundidad_surco_mm
+            self.neumatico.save(update_fields=['profundidad_surco_actual_mm'])
+
+class ChecklistInspeccion(models.Model):
+    """
+    Representa un checklist de inspección pre-operacional realizado por un conductor.
+    """
+    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='checklists')
+    conductor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='checklists_realizados')
+    fecha_inspeccion = models.DateTimeField(default=timezone.now)
+    kilometraje = models.PositiveIntegerField()
+
+    # Items del Checklist
+    luces = models.BooleanField(default=False, verbose_name="Estado de Luces")
+    niveles_fluidos = models.BooleanField(default=False, verbose_name="Niveles de Fluidos (Aceite, Refrigerante)")
+    presion_neumaticos = models.BooleanField(default=False, verbose_name="Presión de Neumáticos")
+    frenos = models.BooleanField(default=False, verbose_name="Sistema de Frenos")
+    elementos_seguridad = models.BooleanField(default=False, verbose_name="Elementos de Seguridad (Extintor, Botiquín)")
+
+    # Resultado
+    aprobado = models.BooleanField(default=False, help_text="Se marca si todos los ítems están OK.")
+    observaciones = models.TextField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Checklist de Inspección"
+        verbose_name_plural = "Checklists de Inspección"
+        ordering = ['-fecha_inspeccion']
+
+    def __str__(self):
+        return f"Checklist de {self.vehiculo.numero_interno} por {self.conductor.username} el {self.fecha_inspeccion.strftime('%d/%m/%Y')}"
+
+    def save(self, *args, **kwargs):
+        # Determinar si la inspección es aprobada
+        self.aprobado = all([
+            self.luces,
+            self.niveles_fluidos,
+            self.presion_neumaticos,
+            self.frenos,
+            self.elementos_seguridad
+        ])
+        super().save(*args, **kwargs)
+
+
+class EvidenciaOT(models.Model):
+    """
+    Almacena una imagen o archivo como evidencia para una Orden de Trabajo.
+    """
+    orden_de_trabajo = models.ForeignKey(OrdenDeTrabajo, on_delete=models.CASCADE, related_name='evidencias')
+    usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, help_text="Usuario que subió la evidencia.")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    archivo = models.FileField(upload_to='evidencias_ot/')
+    descripcion = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Evidencia de OT"
+        verbose_name_plural = "Evidencias de OT"
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f"Evidencia para OT #{self.orden_de_trabajo.folio} subida por {self.usuario.username if self.usuario else 'N/A'}"
+
+
+# ==============================================================================
+#                      MODELOS DE ALERTAS Y PREDICCIÓN
+# ==============================================================================
+
+class ReglaAlerta(models.Model):
+    """
+    Permite a los administradores crear reglas de negocio personalizadas para generar alertas.
+    """
+    METRICA_CHOICES = [
+        ('COSTO_KM', 'Costo por Kilómetro'),
+        ('CONSUMO_COMBUSTIBLE', 'Consumo de Combustible (L/100km)'),
+        ('FRECUENCIA_FALLA', 'Frecuencia de Falla (por tipo)'),
+    ]
+    OPERADOR_CHOICES = [
+        ('MAYOR_QUE', 'Mayor que'),
+        ('MENOR_QUE', 'Menor que'),
+        ('IGUAL_A', 'Igual a'),
+    ]
+
+    nombre = models.CharField(max_length=255, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+    metrica = models.CharField(max_length=50, choices=METRICA_CHOICES)
+    operador = models.CharField(max_length=20, choices=OPERADOR_CHOICES)
+    valor_umbral = models.DecimalField(max_digits=10, decimal_places=2)
+
+    # Filtros opcionales para la regla
+    modelo_vehiculo = models.ManyToManyField(ModeloVehiculo, blank=True, help_text="Dejar en blanco para aplicar a todos los modelos.")
+    tipo_falla_asociada = models.ForeignKey(TipoFalla, on_delete=models.CASCADE, null=True, blank=True, help_text="Necesario solo si la métrica es 'Frecuencia de Falla'.")
+
+    periodo_dias = models.PositiveIntegerField(default=30, help_text="Número de días hacia atrás para calcular la métrica.")
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Regla de Alerta"
+        verbose_name_plural = "Reglas de Alertas"
+
+    def __str__(self):
+        return self.nombre
+
+    def clean(self):
+        if self.metrica == 'FRECUENCIA_FALLA' and not self.tipo_falla_asociada:
+            raise models.ValidationError({'tipo_falla_asociada': 'Debe seleccionar un tipo de falla para la métrica "Frecuencia de Falla".'})
+        if self.metrica != 'FRECUENCIA_FALLA' and self.tipo_falla_asociada:
+            raise models.ValidationError({'tipo_falla_asociada': 'El tipo de falla solo se aplica a la métrica "Frecuencia de Falla".'})
+
+
+# ==============================================================================
+#                      MODELOS DE DASHBOARD PERSONALIZABLE
+# ==============================================================================
+
+class Widget(models.Model):
+    """
+    Define un tipo de widget que puede ser añadido a un dashboard.
+    """
+    nombre = models.CharField(max_length=100, unique=True)
+    descripcion = models.TextField(blank=True, null=True)
+    # Identificador único para que el frontend sepa qué componente renderizar
+    template_name = models.CharField(max_length=100, unique=True, help_text="Ej: 'widgets/kpi_flota.html'")
+
+    def __str__(self):
+        return self.nombre
+
+class DashboardConfig(models.Model):
+    """
+    La configuración de un dashboard específico para un usuario.
+    """
+    usuario = models.OneToOneField(User, on_delete=models.CASCADE, related_name='dashboard_config')
+    nombre = models.CharField(max_length=100, default="Mi Dashboard Principal")
+
+    class Meta:
+        verbose_name = "Configuración de Dashboard"
+        verbose_name_plural = "Configuraciones de Dashboard"
+
+    def __str__(self):
+        return f"Dashboard de {self.usuario.username}"
+
+class DashboardWidgetInstance(models.Model):
+    """
+    Una instancia de un Widget dentro de un Dashboard específico.
+    """
+    dashboard = models.ForeignKey(DashboardConfig, on_delete=models.CASCADE, related_name='widgets')
+    widget = models.ForeignKey(Widget, on_delete=models.CASCADE)
+
+    # Propiedades de GridStack.js
+    pos_x = models.PositiveIntegerField(default=0)
+    pos_y = models.PositiveIntegerField(default=0)
+    width = models.PositiveIntegerField(default=4)
+    height = models.PositiveIntegerField(default=2)
+
+    class Meta:
+        verbose_name = "Instancia de Widget en Dashboard"
+        verbose_name_plural = "Instancias de Widgets en Dashboard"
+        ordering = ['pos_y', 'pos_x']
+
+    def __str__(self):
+        return f"Widget '{self.widget.nombre}' en {self.dashboard}"
+
+
+class HistorialGPS(models.Model):
+    """
+    Registra cada actualización de datos recibida desde un proveedor de GPS.
+    """
+    vehiculo = models.ForeignKey(Vehiculo, on_delete=models.CASCADE, related_name='historial_gps')
+    fecha_recibido = models.DateTimeField(auto_now_add=True)
+    kilometraje_reportado = models.PositiveIntegerField()
+    timestamp_dato = models.DateTimeField(help_text="Fecha y hora del dato original del GPS.")
+    payload_completo = models.JSONField(help_text="El JSON completo recibido del proveedor.")
+
+    class Meta:
+        verbose_name = "Historial de GPS"
+        verbose_name_plural = "Historiales de GPS"
+        ordering = ['-fecha_recibido']
+
+    def __str__(self):
+        return f"Dato GPS para {self.vehiculo.numero_interno} el {self.fecha_recibido.strftime('%d/%m/%Y %H:%M')}"

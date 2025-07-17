@@ -2,6 +2,7 @@
 from django.urls import path, include
 from flota import views as flota_views
 from cuentas import views as cuentas_views # Importar vistas de cuentas
+from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 
 urlpatterns = [
     # Dashboard principal
@@ -62,4 +63,31 @@ urlpatterns = [
 
     # URLs de la app 'cuentas' (login, logout, perfil)
     path('', include('cuentas.urls')),
+
+    # URLs del Módulo de Neumáticos
+    path('neumaticos/', flota_views.neumatico_list, name='neumatico_list'),
+    path('neumaticos/nuevo/', flota_views.neumatico_create, name='neumatico_create'),
+    path('neumaticos/<int:pk>/', flota_views.neumatico_detail, name='neumatico_detail'),
+    path('neumaticos/<int:pk>/editar/', flota_views.neumatico_update, name='neumatico_update'),
+    path('neumaticos/<int:neumatico_pk>/registrar-montaje/', flota_views.registrar_montaje, name='registrar_montaje'),
+    path('neumaticos/<int:neumatico_pk>/registrar-inspeccion/', flota_views.registrar_inspeccion, name='registrar_inspeccion'),
+
+    # URL para agregar evidencia a una OT
+    path('ordenes/<int:ot_pk>/agregar-evidencia/', flota_views.agregar_evidencia_ot, name='agregar_evidencia_ot'),
+
+    # URLs para la gestión de Reglas de Alerta
+    path('alertas/', flota_views.regla_alerta_list, name='regla_alerta_list'),
+    path('alertas/nueva/', flota_views.regla_alerta_create, name='regla_alerta_create'),
+    path('alertas/<int:pk>/editar/', flota_views.regla_alerta_update, name='regla_alerta_update'),
+    path('alertas/<int:pk>/eliminar/', flota_views.regla_alerta_delete, name='regla_alerta_delete'),
+
+    # URLs de la API
+    path('api/v1/', include('flota.api_urls')),
+    path('api/v1/', include('cuentas.api_urls')),
+
+    # URLs de Documentación de la API
+    path('api/v1/schema/', SpectacularAPIView.as_view(), name='schema'),
+    # Opcional: Interfaces de UI para la documentación
+    path('api/v1/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/v1/schema/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 ]

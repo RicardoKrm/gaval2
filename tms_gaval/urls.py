@@ -1,5 +1,6 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
+from django.conf import settings
 from django.contrib.auth import views as auth_views
 from . import views as tms_gaval_views
 from flota import views as flota_views # Solo para landing_page
@@ -18,4 +19,13 @@ urlpatterns = [
     path('', flota_views.landing_page, name='landing'),
     
     # Aquí podrían ir otras URLs públicas, como registro de nuevas empresas (tenants), etc.
+
+    # URLs del Panel de Super Administrador
+    path('superadmin/', include('superadmin.urls')),
 ]
+
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns = [
+        path('__debug__/', include(debug_toolbar.urls)),
+    ] + urlpatterns

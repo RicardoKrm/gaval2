@@ -1,0 +1,61 @@
+{% extends "flota/base.html" %}
+
+{% block title %}Panel de Super Administrador{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div>
+        <h1 class="text-4xl font-extrabold text-text-primary">Panel de Super Administrador</h1>
+        <p class="text-text-secondary mt-1">Vista global de todos los tenants del sistema.</p>
+    </div>
+
+    <!-- KPIs Globales -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="card-style text-center">
+            <h3 class="text-lg font-semibold text-text-secondary">Total de Empresas (Tenants)</h3>
+            <p class="text-5xl font-bold text-accent mt-2">{{ total_tenants }}</p>
+        </div>
+        <div class="card-style text-center">
+            <h3 class="text-lg font-semibold text-text-secondary">Total de Vehículos (Global)</h3>
+            <p class="text-5xl font-bold text-accent mt-2">{{ total_vehiculos_global }}</p>
+        </div>
+        <div class="card-style text-center">
+            <h3 class="text-lg font-semibold text-text-secondary">Total de OTs (Global)</h3>
+            <p class="text-5xl font-bold text-accent mt-2">{{ total_ots_global }}</p>
+        </div>
+    </div>
+
+    <!-- Tabla Comparativa de Tenants -->
+    <div class="card-style">
+        <h2 class="text-2xl font-bold text-text-primary mb-4">Resumen por Empresa</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-input-border">
+                <thead class="bg-bg-secondary">
+                    <tr>
+                        <th scope="col" class="table-header">Empresa (Tenant)</th>
+                        <th scope="col" class="table-header">Schema Name</th>
+                        <th scope="col" class="table-header">Dominio Principal</th>
+                        <th scope="col" class="table-header">Nº de Vehículos</th>
+                        <th scope="col" class="table-header">Nº de OTs</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-card-base-bg divide-y divide-input-border">
+                    {% for stats in stats_por_tenant %}
+                    <tr>
+                        <td class="table-cell font-bold">{{ stats.tenant.nombre }}</td>
+                        <td class="table-cell font-mono">{{ stats.tenant.schema_name }}</td>
+                        <td class="table-cell">{{ stats.tenant.domains.first.domain }}</td>
+                        <td class="table-cell text-center font-semibold">{{ stats.num_vehiculos }}</td>
+                        <td class="table-cell text-center font-semibold">{{ stats.num_ots }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-10 text-text-secondary">No hay tenants para mostrar.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

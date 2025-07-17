@@ -44,11 +44,12 @@ from .models import (
 from .forms import (
     OrdenDeTrabajoForm, CambiarEstadoOTForm, BitacoraDiariaForm, CargaMasivaForm, 
     CerrarOtMecanicoForm, AsignarPersonalOTForm, ManualTareaForm, ManualInsumoForm, FiltroPizarraForm, AsignarTareaForm,
-    PausarOTForm, DiagnosticoEvaluacionForm, OTFiltroForm, CalendarioFiltroForm, RepuestoForm, MovimientoStockForm, CargaCombustibleForm
-
+    PausarOTForm, DiagnosticoEvaluacionForm, OTFiltroForm, CalendarioFiltroForm, RepuestoForm, MovimientoStockForm, CargaCombustibleForm,
+    NeumaticoForm, MontajeNeumaticoForm, InspeccionNeumaticoForm, EvidenciaOTForm
 )
 
 from django.utils import timezone 
+from django.core.cache import cache
 
 
 def landing_page(request):
@@ -82,7 +83,9 @@ def dashboard_flota(request):
     
     porcentaje_alerta = 90
 
-    vehiculos_qs = Vehiculo.objects.select_related('modelo', 'norma_euro').order_by('numero_interno')
+    vehiculos_qs = Vehiculo.objects.select_related('modelo', 'norma_euro').prefetch_related(
+        'ordenes_de_trabajo__pauta_mantenimiento'
+    ).order_by('numero_interno')
     filtro_form = FiltroPizarraForm(request.GET or None)
     
     if filtro_form.is_valid():
@@ -196,12 +199,12 @@ def orden_trabajo_list(request):
     # 1. Determinar el queryset base según el rol del usuario
     if es_personal_operativo(request.user):
         # Admins, Supervisores y Gerentes ven todas las OTs
-        ordenes_list = OrdenDeTrabajo.objects.all()
+        ordenes_list = OrdenDeTrabajo.objects.select_related('vehiculo', 'responsable', 'pauta_mantenimiento', 'tipo_falla').prefetch_related('personal_asignado')
     else:
         # Mecánicos ven solo las OTs donde están asignados
         ordenes_list = OrdenDeTrabajo.objects.filter(
             Q(responsable=request.user) | Q(personal_asignado=request.user)
-        ).distinct()
+        ).select_related('vehiculo', 'responsable', 'pauta_mantenimiento', 'tipo_falla').prefetch_related('personal_asignado').distinct()
 
     # 2. Aplicar filtros de búsqueda sobre el queryset base
     filtro_form = OTFiltroForm(request.GET)
@@ -305,7 +308,18 @@ def ot_eventos_api(request):
 @login_required
 def orden_trabajo_detail(request, pk):
     connection.set_tenant(request.tenant)
-    ot = get_object_or_404(OrdenDeTrabajo, pk=pk)
+    ot = get_object_or_404(
+        OrdenDeTrabajo.objects.select_related(
+            'vehiculo__modelo', 'pauta_mantenimiento', 'tipo_falla', 'proveedor'
+        ).prefetch_related(
+            'tareas_realizadas',
+            'detalles_insumos_ot__repuesto_inventario',
+            'detalles_insumos_ot__insumo',
+            'personal_asignado',
+            'historial__usuario'
+        ),
+        pk=pk
+    )
     
     # --- LÓGICA DE PERMISOS SIMPLE Y DIRECTA ---
     user_groups = set(request.user.groups.values_list('name', flat=True))
@@ -349,6 +363,7 @@ def orden_trabajo_detail(request, pk):
         'asignar_tarea_form': asignar_tarea_form,
         'solicitud_tarea_form': solicitud_tarea_form,
         'prueba_ruta_form': prueba_ruta_form,
+        'evidencia_form': EvidenciaOTForm(),
     }
     return render(request, 'flota/orden_trabajo_detail.html', context)
 
@@ -680,6 +695,8 @@ def carga_masiva(request):
 @login_required
 def indicadores_dashboard(request):
     connection.set_tenant(request.tenant)
+
+    # Determinar el rango de fechas
     end_date = datetime.now().date()
     start_date = end_date - timedelta(days=30)
     if request.GET.get('start_date') and request.GET.get('end_date'):
@@ -688,63 +705,102 @@ def indicadores_dashboard(request):
             end_date = datetime.strptime(request.GET.get('end_date'), '%Y-%m-%d').date()
         except (ValueError, TypeError):
             pass
-    bitacoras = BitacoraDiaria.objects.filter(fecha__range=[start_date, end_date])
-    ots_en_periodo = OrdenDeTrabajo.objects.filter(fecha_creacion__date__range=[start_date, end_date])
-    kpis_mensuales = bitacoras.annotate(month=TruncMonth('fecha')).values('month').annotate(total_horas_op=Sum('horas_operativas'), total_horas_mant_prog=Sum('horas_mantenimiento_prog'), total_horas_falla=Sum('horas_falla')).order_by('month')
-    labels_mes, disponibilidad_data, confiabilidad_data, utilizacion_data = [], [], [], []
-    for kpi in kpis_mensuales:
-        mes_label = kpi['month'].strftime('%B %Y')
-        labels_mes.append(mes_label)
-        horas_calendario, horas_op, horas_falla, horas_mant_prog = 730, kpi['total_horas_op'] or 0, kpi['total_horas_falla'] or 0, kpi['total_horas_mant_prog'] or 0
-        horas_disponibles = float(horas_calendario - horas_mant_prog - horas_falla)
-        disponibilidad = (horas_disponibles / horas_calendario) * 100 if horas_calendario > 0 else 0
-        confiabilidad = ((horas_calendario - float(horas_falla)) / horas_calendario) * 100 if horas_calendario > 0 else 0
-        utilizacion = (float(horas_op) / horas_disponibles) * 100 if horas_disponibles > 0 else 0
-        disponibilidad_data.append(round(disponibilidad, 2))
-        confiabilidad_data.append(round(confiabilidad, 2))
-        utilizacion_data.append(round(utilizacion, 2))
-    total_preventivas = ots_en_periodo.filter(tipo='PREVENTIVA').count()
-    total_correctivas = ots_en_periodo.filter(tipo='CORRECTIVA').count()
-    preventivas_finalizadas = ots_en_periodo.filter(tipo='PREVENTIVA', estado='FINALIZADA').count()
-    preventivas_pendientes = total_preventivas - preventivas_finalizadas
-    correctivas_finalizadas = ots_en_periodo.filter(tipo='CORRECTIVA', estado='FINALIZADA').count()
-    correctivas_pendientes = total_correctivas - correctivas_finalizadas
-    context = {
-        'start_date': start_date.strftime('%Y-%m-%d'), 'end_date': end_date.strftime('%Y-%m-%d'),
-        'labels_mes': json.dumps(labels_mes), 'disponibilidad_data': json.dumps(disponibilidad_data),
-        'confiabilidad_data': json.dumps(confiabilidad_data), 'utilizacion_data': json.dumps(utilizacion_data),
-        'total_preventivas': total_preventivas, 'total_correctivas': total_correctivas,
-        'preventivas_finalizadas': preventivas_finalizadas, 'preventivas_pendientes': preventivas_pendientes,
-        'correctivas_finalizadas': correctivas_finalizadas, 'correctivas_pendientes': correctivas_pendientes,
-    }
+
+    # Crear una clave de caché única para este tenant y rango de fechas
+    cache_key = f"indicadores_dashboard_{request.tenant.schema_name}_{start_date.isoformat()}_{end_date.isoformat()}"
+
+    # Intentar obtener el contexto del caché
+    context = cache.get(cache_key)
+
+    if context is None:
+        # Si no está en caché (cache miss), realizar los cálculos
+        bitacoras = BitacoraDiaria.objects.filter(fecha__range=[start_date, end_date])
+        ots_en_periodo = OrdenDeTrabajo.objects.filter(fecha_creacion__date__range=[start_date, end_date])
+        kpis_mensuales = bitacoras.annotate(month=TruncMonth('fecha')).values('month').annotate(total_horas_op=Sum('horas_operativas'), total_horas_mant_prog=Sum('horas_mantenimiento_prog'), total_horas_falla=Sum('horas_falla')).order_by('month')
+        labels_mes, disponibilidad_data, confiabilidad_data, utilizacion_data = [], [], [], []
+        for kpi in kpis_mensuales:
+            mes_label = kpi['month'].strftime('%B %Y')
+            labels_mes.append(mes_label)
+            horas_calendario, horas_op, horas_falla, horas_mant_prog = 730, kpi['total_horas_op'] or 0, kpi['total_horas_falla'] or 0, kpi['total_horas_mant_prog'] or 0
+            horas_disponibles = float(horas_calendario - horas_mant_prog - horas_falla)
+            disponibilidad = (horas_disponibles / horas_calendario) * 100 if horas_calendario > 0 else 0
+            confiabilidad = ((horas_calendario - float(horas_falla)) / horas_calendario) * 100 if horas_calendario > 0 else 0
+            utilizacion = (float(horas_op) / horas_disponibles) * 100 if horas_disponibles > 0 else 0
+            disponibilidad_data.append(round(disponibilidad, 2))
+            confiabilidad_data.append(round(confiabilidad, 2))
+            utilizacion_data.append(round(utilizacion, 2))
+
+        total_preventivas = ots_en_periodo.filter(tipo='PREVENTIVA').count()
+        total_correctivas = ots_en_periodo.filter(tipo='CORRECTIVA').count()
+        preventivas_finalizadas = ots_en_periodo.filter(tipo='PREVENTIVA', estado='FINALIZADA').count()
+        preventivas_pendientes = total_preventivas - preventivas_finalizadas
+        correctivas_finalizadas = ots_en_periodo.filter(tipo='CORRECTIVA', estado='FINALIZADA').count()
+        correctivas_pendientes = total_correctivas - correctivas_finalizadas
+
+        context = {
+            'start_date': start_date.strftime('%Y-%m-%d'), 'end_date': end_date.strftime('%Y-%m-%d'),
+            'labels_mes': json.dumps(labels_mes), 'disponibilidad_data': json.dumps(disponibilidad_data),
+            'confiabilidad_data': json.dumps(confiabilidad_data), 'utilizacion_data': json.dumps(utilizacion_data),
+            'total_preventivas': total_preventivas, 'total_correctivas': total_correctivas,
+            'preventivas_finalizadas': preventivas_finalizadas, 'preventivas_pendientes': preventivas_pendientes,
+            'correctivas_finalizadas': correctivas_finalizadas, 'correctivas_pendientes': correctivas_pendientes,
+            'is_cached': False # Añadir una bandera para saber si la data es de caché
+        }
+
+        # Guardar el contexto calculado en el caché por 15 minutos (900 segundos)
+        cache.set(cache_key, context, 900)
+    else:
+        # Si está en caché (cache hit), simplemente añadir una bandera para confirmarlo
+        context['is_cached'] = True
+
     return render(request, 'flota/indicadores_dashboard.html', context)
 
 
 @login_required
 def analisis_fallas(request):
     connection.set_tenant(request.tenant)
+
+    # Determinar el rango de fechas
     end_date_str = request.GET.get('end_date', datetime.now().strftime('%Y-%m-%d'))
     start_date_str = request.GET.get('start_date', (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d'))
+
     try:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
     except (ValueError, TypeError):
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=30)
-    fallas = OrdenDeTrabajo.objects.filter(tipo='CORRECTIVA', tipo_falla__isnull=False, tfs_minutos__gt=0, fecha_creacion__date__range=[start_date, end_date]).values('tipo_falla__descripcion', 'tipo_falla__causa', 'tipo_falla__criticidad').annotate(tfs_total_falla=Sum('tfs_minutos')).order_by('-tfs_total_falla')
-    tfs_gran_total = sum(item['tfs_total_falla'] for item in fallas)
-    frec_acumulada, data_pareto = 0, []
-    for item in fallas:
-        frec_relativa = (item['tfs_total_falla'] / tfs_gran_total) * 100 if tfs_gran_total > 0 else 0
-        frec_acumulada += frec_relativa
-        item['frecuencia_relativa'] = round(frec_relativa, 2)
-        item['frecuencia_acumulada'] = round(frec_acumulada, 2)
-        data_pareto.append(item)
-    context = {
-        'data_pareto_tabla': data_pareto, 'labels': json.dumps([item['tipo_falla__descripcion'] for item in data_pareto]),
-        'frecuencia_data': json.dumps([item['frecuencia_relativa'] for item in data_pareto]), 'acumulada_data': json.dumps([item['frecuencia_acumulada'] for item in data_pareto]),
-        'start_date': start_date.strftime('%Y-%m-%d'), 'end_date': end_date.strftime('%Y-%m-%d'),
-    }
+
+    # Crear clave de caché
+    cache_key = f"analisis_fallas_{request.tenant.schema_name}_{start_date.isoformat()}_{end_date.isoformat()}"
+    context = cache.get(cache_key)
+
+    if context is None:
+        # Si no está en caché, realizar los cálculos
+        fallas = OrdenDeTrabajo.objects.filter(tipo='CORRECTIVA', tipo_falla__isnull=False, tfs_minutos__gt=0, fecha_creacion__date__range=[start_date, end_date]).values('tipo_falla__descripcion', 'tipo_falla__causa', 'tipo_falla__criticidad').annotate(tfs_total_falla=Sum('tfs_minutos')).order_by('-tfs_total_falla')
+        tfs_gran_total = sum(item['tfs_total_falla'] for item in fallas)
+        frec_acumulada, data_pareto = 0, []
+        for item in fallas:
+            frec_relativa = (item['tfs_total_falla'] / tfs_gran_total) * 100 if tfs_gran_total > 0 else 0
+            frec_acumulada += frec_relativa
+            item['frecuencia_relativa'] = round(frec_relativa, 2)
+            item['frecuencia_acumulada'] = round(frec_acumulada, 2)
+            data_pareto.append(item)
+
+        context = {
+            'data_pareto_tabla': data_pareto,
+            'labels': json.dumps([item['tipo_falla__descripcion'] for item in data_pareto]),
+            'frecuencia_data': json.dumps([item['frecuencia_relativa'] for item in data_pareto]),
+            'acumulada_data': json.dumps([item['frecuencia_acumulada'] for item in data_pareto]),
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'end_date': end_date.strftime('%Y-%m-%d'),
+            'is_cached': False
+        }
+        # Guardar en caché por 30 minutos (1800 segundos)
+        cache.set(cache_key, context, 1800)
+    else:
+        context['is_cached'] = True
+
     return render(request, 'flota/analisis_fallas.html', context)
 
 
@@ -968,11 +1024,11 @@ def repuesto_list(request):
     connection.set_tenant(request.tenant)
     query = request.GET.get('q', '')
     if query:
-        repuestos = Repuesto.objects.filter(
+        repuestos = Repuesto.objects.select_related('proveedor_habitual').filter(
             Q(nombre__icontains=query) | Q(numero_parte__icontains=query)
         ).order_by('nombre')
     else:
-        repuestos = Repuesto.objects.all().order_by('nombre')
+        repuestos = Repuesto.objects.select_related('proveedor_habitual').all().order_by('nombre')
     
     context = {
         'repuestos': repuestos,
@@ -1386,12 +1442,9 @@ def marcar_notificaciones_leidas(request):
 @login_required
 @user_passes_test(lambda u: es_administrador(u) or es_gerente(u))
 def kpi_rrhh_dashboard(request):
-    """
-    Dashboard para mostrar los KPIs de Recursos Humanos.
-    """
     connection.set_tenant(request.tenant)
 
-    # --- Lógica de Filtro de Fechas ---
+    # Determinar el rango de fechas
     end_date = timezone.now().date()
     start_date = end_date - timedelta(days=30)
     if request.GET.get('start_date') and request.GET.get('end_date'):
@@ -1403,143 +1456,274 @@ def kpi_rrhh_dashboard(request):
         except (ValueError, TypeError):
             pass
 
-    # --- Cálculos para el período seleccionado ---
-    ots_finalizadas_periodo = OrdenDeTrabajo.objects.filter(estado='FINALIZADA', fecha_cierre__date__range=[start_date, end_date])
+    # Crear clave de caché
+    cache_key = f"kpi_rrhh_dashboard_{request.tenant.schema_name}_{start_date.isoformat()}_{end_date.isoformat()}"
+    context = cache.get(cache_key)
 
-    # KPI 1: Productividad (lógica existente)
-    minutos_estandar_totales = ots_finalizadas_periodo.aggregate(total=Sum('tareas_realizadas__tiempo_estandar_minutos'))['total'] or 0
-    minutos_reales_trabajados = ots_finalizadas_periodo.aggregate(total=Sum('tfs_minutos'))['total'] or 0
-    kpi_productividad = (minutos_estandar_totales / minutos_reales_trabajados) * 100 if minutos_reales_trabajados > 0 else 0
+    if context is None:
+        # Si no está en caché, realizar los cálculos
+        ots_finalizadas_periodo = OrdenDeTrabajo.objects.filter(estado='FINALIZADA', fecha_cierre__date__range=[start_date, end_date])
+        minutos_estandar_totales = ots_finalizadas_periodo.aggregate(total=Sum('tareas_realizadas__tiempo_estandar_minutos'))['total'] or 0
+        minutos_reales_trabajados = ots_finalizadas_periodo.aggregate(total=Sum('tfs_minutos'))['total'] or 0
+        kpi_productividad = (minutos_estandar_totales / minutos_reales_trabajados) * 100 if minutos_reales_trabajados > 0 else 0
 
-    # KPI 2: Cumplimiento (lógica existente)
-    ots_programadas_en_periodo = OrdenDeTrabajo.objects.filter(fecha_programada__range=[start_date, end_date])
-    total_programadas = ots_programadas_en_periodo.count()
-    finalizadas_a_tiempo = ots_programadas_en_periodo.filter(estado='FINALIZADA', fecha_cierre__date__lte=F('fecha_programada')).count()
-    kpi_cumplimiento = (finalizadas_a_tiempo / total_programadas) * 100 if total_programadas > 0 else 0
+        ots_programadas_en_periodo = OrdenDeTrabajo.objects.filter(fecha_programada__range=[start_date, end_date])
+        total_programadas = ots_programadas_en_periodo.count()
+        finalizadas_a_tiempo = ots_programadas_en_periodo.filter(estado='FINALIZADA', fecha_cierre__date__lte=F('fecha_programada')).count()
+        kpi_cumplimiento = (finalizadas_a_tiempo / total_programadas) * 100 if total_programadas > 0 else 0
 
-    # === INICIO DE LA NUEVA LÓGICA PARA EL KPI 3 ===
-    # KPI 3: Utilización de Recursos
+        config = ConfiguracionEmpresa.load()
+        horas_mes_persona = config.horas_laborales_mes_por_persona
+        numero_de_tecnicos = User.objects.filter(groups__name='Mecánico', is_active=True).count()
+        num_dias_periodo = (end_date - start_date).days + 1
+        proporcion_mes = num_dias_periodo / 30.4
+        minutos_disponibles_totales = (numero_de_tecnicos * horas_mes_persona * 60) * proporcion_mes
+        kpi_utilizacion = (minutos_reales_trabajados / minutos_disponibles_totales) * 100 if minutos_disponibles_totales > 0 else 0
 
-    # 1. Obtener los parámetros de configuración
-    config = ConfiguracionEmpresa.load()
-    horas_mes_persona = config.horas_laborales_mes_por_persona
+        context = {
+            'start_date': start_date.strftime('%Y-%m-%d'),
+            'end_date': end_date.strftime('%Y-%m-%d'),
+            'kpi_productividad': kpi_productividad,
+            'kpi_cumplimiento': kpi_cumplimiento,
+            'numero_de_tecnicos': numero_de_tecnicos,
+            'minutos_disponibles_totales': minutos_disponibles_totales,
+            'minutos_reales_trabajados': minutos_reales_trabajados,
+            'kpi_utilizacion': kpi_utilizacion,
+            'is_cached': False
+        }
 
-    # 2. Contar el número de técnicos activos
-    numero_de_tecnicos = User.objects.filter(groups__name='Mecánico', is_active=True).count()
-
-    # 3. Calcular los minutos disponibles totales del equipo para el período
-    #    (Es una aproximación. Una versión más avanzada calcularía los días laborables exactos)
-    num_dias_periodo = (end_date - start_date).days + 1
-    # Asumimos un mes de ~30.4 días para la proporción
-    proporcion_mes = num_dias_periodo / 30.4
-    minutos_disponibles_totales = (numero_de_tecnicos * horas_mes_persona * 60) * proporcion_mes
-
-    # 4. Calcular el KPI de Utilización
-    kpi_utilizacion = (minutos_reales_trabajados / minutos_disponibles_totales) * 100 if minutos_disponibles_totales > 0 else 0
-    # === FIN DE LA NUEVA LÓGICA ===
-    
-    # --- Datos para Gráficos (sin cambios por ahora) ---
-    # ... tu lógica de gráficos existente ...
-    
-    context = {
-        'start_date': start_date.strftime('%Y-%m-%d'),
-        'end_date': end_date.strftime('%Y-%m-%d'),
-        
-        # KPI 1
-        'kpi_productividad': kpi_productividad,
-        # KPI 2
-        'kpi_cumplimiento': kpi_cumplimiento,
-        
-        # KPI 3 (nuevos datos)
-        'numero_de_tecnicos': numero_de_tecnicos,
-        'minutos_disponibles_totales': minutos_disponibles_totales,
-        'minutos_reales_trabajados': minutos_reales_trabajados, # Ya lo teníamos, pero lo pasamos de nuevo para esta tarjeta
-        'kpi_utilizacion': kpi_utilizacion,
-
-        # ... tus otros datos de contexto para tarjetas y gráficos ...
-    }
+        # Guardar en caché por 30 minutos (1800 segundos)
+        cache.set(cache_key, context, 1800)
+    else:
+        context['is_cached'] = True
 
     return render(request, 'flota/kpi_rrhh_dashboard.html', context)
+
+
+# ==============================================================================
+#                      VISTAS DE GESTIÓN DE NEUMÁTICOS
+# ==============================================================================
+
+@login_required
+def neumatico_list(request):
+    """
+    Muestra el inventario de todos los neumáticos.
+    """
+    connection.set_tenant(request.tenant)
+    query = request.GET.get('q', '')
+    estado_filter = request.GET.get('estado', '')
+
+    neumaticos_qs = Neumatico.objects.select_related('vehiculo_actual').all()
+
+    if query:
+        neumaticos_qs = neumaticos_qs.filter(
+            Q(dot__icontains=query) | Q(marca__icontains=query) | Q(modelo__icontains=query)
+        )
+
+    if estado_filter:
+        neumaticos_qs = neumaticos_qs.filter(estado=estado_filter)
+
+    context = {
+        'neumaticos': neumaticos_qs.order_by('dot'),
+        'query': query,
+        'estado_filter': estado_filter,
+        'estado_choices': Neumatico.ESTADO_CHOICES,
+    }
+    return render(request, 'flota/neumatico_list.html', context)
+
+@login_required
+def neumatico_detail(request, pk):
+    """
+    Muestra la hoja de vida de un neumático específico.
+    """
+    connection.set_tenant(request.tenant)
+    neumatico = get_object_or_404(Neumatico, pk=pk)
+    historial_montajes = neumatico.historial_montajes.select_related('vehiculo', 'usuario_responsable').all()
+    inspecciones = neumatico.inspecciones.select_related('inspector').all()
+
+    context = {
+        'neumatico': neumatico,
+        'historial_montajes': historial_montajes,
+        'inspecciones': inspecciones,
+        'montaje_form': MontajeNeumaticoForm(),
+        'inspeccion_form': InspeccionNeumaticoForm(),
+    }
+    return render(request, 'flota/neumatico_detail.html', context)
+
+@login_required
+@user_passes_test(es_supervisor_o_admin)
+def neumatico_create(request):
+    """
+    Crea un nuevo neumático en el inventario.
+    """
+    connection.set_tenant(request.tenant)
+    if request.method == 'POST':
+        form = NeumaticoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Neumático registrado con éxito.')
+            return redirect('neumatico_list')
+    else:
+        form = NeumaticoForm()
+
+    context = {'form': form}
+    return render(request, 'flota/neumatico_form.html', context)
+
+@login_required
+@user_passes_test(es_supervisor_o_admin)
+def neumatico_update(request, pk):
+    """
+    Actualiza la información de un neumático.
+    """
+    connection.set_tenant(request.tenant)
+    neumatico = get_object_or_404(Neumatico, pk=pk)
+    if request.method == 'POST':
+        form = NeumaticoForm(request.POST, instance=neumatico)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Neumático actualizado con éxito.')
+            return redirect('neumatico_detail', pk=pk)
+    else:
+        form = NeumaticoForm(instance=neumatico)
+
+    context = {'form': form, 'neumatico': neumatico}
+    return render(request, 'flota/neumatico_form.html', context)
+
+@login_required
+@user_passes_test(es_personal_operativo)
+def registrar_montaje(request, neumatico_pk):
+    """
+    Registra un evento de montaje o desmontaje para un neumático.
+    """
+    connection.set_tenant(request.tenant)
+    neumatico = get_object_or_404(Neumatico, pk=neumatico_pk)
+
+    if request.method == 'POST':
+        form = MontajeNeumaticoForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                # Desmontaje (si estaba montado)
+                if neumatico.estado == 'MONTADO':
+                    km_actual = form.cleaned_data['kilometraje_vehiculo']
+                    ultimo_montaje = neumatico.historial_montajes.filter(accion='MONTAJE').first()
+                    if ultimo_montaje:
+                        km_recorridos = km_actual - ultimo_montaje.kilometraje_vehiculo
+                        if km_recorridos > 0:
+                            neumatico.kilometraje_acumulado += km_recorridos
+
+                    HistorialMontaje.objects.create(
+                        neumatico=neumatico,
+                        vehiculo=neumatico.vehiculo_actual,
+                        accion='DESMONTAJE',
+                        kilometraje_vehiculo=km_actual,
+                        posicion=neumatico.posicion_actual,
+                        usuario_responsable=request.user,
+                        notas="Desmontaje automático antes de nuevo montaje."
+                    )
+                    neumatico.estado = 'EN_BODEGA'
+                    neumatico.vehiculo_actual = None
+                    neumatico.posicion_actual = None
+                    neumatico.save()
+
+                # Montaje
+                nuevo_montaje = form.save(commit=False)
+                nuevo_montaje.neumatico = neumatico
+                nuevo_montaje.accion = 'MONTAJE'
+                nuevo_montaje.usuario_responsable = request.user
+                nuevo_montaje.save()
+
+                neumatico.estado = 'MONTADO'
+                neumatico.vehiculo_actual = nuevo_montaje.vehiculo
+                neumatico.posicion_actual = nuevo_montaje.posicion
+                neumatico.save()
+
+                messages.success(request, f'Montaje del neumático {neumatico.dot} en {neumatico.vehiculo_actual.numero_interno} registrado con éxito.')
+
+    return redirect('neumatico_detail', pk=neumatico_pk)
+
+@login_required
+@user_passes_test(es_personal_operativo)
+def registrar_inspeccion(request, neumatico_pk):
+    """
+    Registra una nueva inspección para un neumático.
+    """
+    connection.set_tenant(request.tenant)
+    neumatico = get_object_or_404(Neumatico, pk=neumatico_pk)
+    if request.method == 'POST':
+        form = InspeccionNeumaticoForm(request.POST)
+        if form.is_valid():
+            inspeccion = form.save(commit=False)
+            inspeccion.neumatico = neumatico
+            inspeccion.inspector = request.user
+            inspeccion.save() # El método save de la inspección actualiza el neumático
+            messages.success(request, f'Inspección para el neumático {neumatico.dot} registrada con éxito.')
+
+    return redirect('neumatico_detail', pk=neumatico_pk)
+
+
+@login_required
+@user_passes_test(es_personal_operativo)
+def agregar_evidencia_ot(request, ot_pk):
+    """
+    Agrega un archivo de evidencia a una Orden de Trabajo.
+    """
+    connection.set_tenant(request.tenant)
+    ot = get_object_or_404(OrdenDeTrabajo, pk=ot_pk)
+    if request.method == 'POST':
+        form = EvidenciaOTForm(request.POST, request.FILES)
+        if form.is_valid():
+            evidencia = form.save(commit=False)
+            evidencia.orden_de_trabajo = ot
+            evidencia.usuario = request.user
+            evidencia.save()
+            messages.success(request, 'Evidencia añadida a la OT con éxito.')
+        else:
+            messages.error(request, 'Error al subir el archivo. Por favor, inténtalo de nuevo.')
+
+    return redirect('ot_detail', pk=ot_pk)
+
+from .tasks import generar_reporte_ots_task, revisar_estado_neumaticos_task
 
 @login_required
 @user_passes_test(lambda u: es_administrador(u) or es_gerente(u))
 def reportes_dashboard(request):
     """
     Página principal para la generación de reportes.
-    Inicialmente, permite exportar OTs a CSV.
+    Ahora delega la generación de reportes a una tarea de Celery.
     """
     connection.set_tenant(request.tenant)
 
-    # --- Lógica para manejar la petición de exportación (se mantiene) ---
     if request.method == 'POST':
-        # ... (tu código POST existente para exportación) ...
-        # Asegúrate de que aquí los nombres sean 'start_date' y 'end_date'
         start_date_str = request.POST.get('start_date')
         end_date_str = request.POST.get('end_date')
 
+        # Validar fechas
         try:
-            start_date = timezone.datetime.strptime(start_date_str, '%Y-%m-%d').date()
-            end_date = timezone.datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            # Asegurarse de que las fechas son válidas, aunque no las usemos directamente aquí
+            timezone.datetime.strptime(start_date_str, '%Y-%m-%d')
+            timezone.datetime.strptime(end_date_str, '%Y-%m-%d')
         except (ValueError, TypeError, AttributeError):
             messages.error(request, "Formato de fecha inválido. Por favor, seleccione un rango de fechas.")
             return redirect('reportes_dashboard')
-
-        # Si descomentas los filtros de vehiculo, estado, tipo en la plantilla,
-        # aquí deberías procesarlos también. Por ejemplo:
-        # vehiculo_ids = request.POST.getlist('vehiculo_ot')
-        # if vehiculo_ids:
-        #     ordenes = ordenes.filter(vehiculo__pk__in=vehiculo_ids)
-        # etc.
-
-        ordenes = OrdenDeTrabajo.objects.filter(
-            fecha_cierre__date__range=[start_date, end_date]
-        ).select_related(
-            'vehiculo', 'vehiculo__modelo', 'responsable', 'tipo_falla'
-        ).prefetch_related('tareas_realizadas', 'detalles_insumos_ot')
         
-        if not ordenes.exists():
-            messages.warning(request, "No se encontraron Órdenes de Trabajo en el período seleccionado para exportar.")
-            return redirect('reportes_dashboard')
+        # Crear un diccionario con los filtros para pasarlo a la tarea de Celery
+        # Pasamos solo strings y valores simples, no objetos de Django
+        filtros = {
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            # Aquí se podrían añadir otros filtros del formulario, ej:
+            # 'vehiculo_id': request.POST.get('vehiculo_id')
+        }
 
-        # ... (tu lógica de generación de CSV existente) ...
-        response = HttpResponse(
-            content_type='text/csv',
-            headers={'Content-Disposition': f'attachment; filename="reporte_ots_{start_date_str}_a_{end_date_str}.csv"'},
-        )
-        response.write(u'\ufeff'.encode('utf8'))
-
-        writer = csv.writer(response, delimiter=';')
+        # Llamar a la tarea de Celery de forma asíncrona
+        generar_reporte_ots_task.delay(user_id=request.user.id, filtros=filtros)
         
-        writer.writerow([
-            'Folio OT', 'Estado', 'Tipo', 'Vehiculo Numero', 'Vehiculo Patente', 
-            'Fecha Creacion', 'Fecha Cierre', 'Kilometraje Apertura', 'Kilometraje Cierre',
-            'Responsable', 'Costo Total', 'TFS (Minutos)', 'Tipo de Falla', 'Tareas'
-        ])
-
-        for ot in ordenes:
-            tareas_str = ", ".join([tarea.descripcion for tarea in ot.tareas_realizadas.all()])
-            
-            writer.writerow([
-                ot.folio,
-                ot.get_estado_display(),
-                ot.get_tipo_display(),
-                ot.vehiculo.numero_interno,
-                ot.vehiculo.patente,
-                ot.fecha_creacion.strftime('%d-%m-%Y %H:%M') if ot.fecha_creacion else '',
-                ot.fecha_cierre.strftime('%d-%m-%Y %H:%M') if ot.fecha_cierre else '',
-                ot.kilometraje_apertura,
-                ot.kilometraje_cierre,
-                ot.responsable.username if ot.responsable else 'N/A',
-                f"{ot.costo_total:.2f}".replace('.',','),
-                ot.tfs_minutos,
-                ot.tipo_falla.descripcion if ot.tipo_falla else 'N/A',
-                tareas_str
-            ])
+        # Notificar al usuario inmediatamente
+        messages.success(request, "Tu solicitud de reporte ha sido recibida. Recibirás una notificación cuando esté listo para descargar.")
         
-        return response
+        return redirect('reportes_dashboard')
 
-    # Lógica para mostrar la página si la petición es GET
-    # PASAMOS LOS DATOS NECESARIOS PARA LOS SELECTORES DE LA PLANTILLA
+    # La lógica para la petición GET se mantiene igual
     vehiculos = Vehiculo.objects.all().order_by('numero_interno')
     estados_ot = OrdenDeTrabajo.ESTADO_CHOICES
     tipos_ot = OrdenDeTrabajo.TIPO_CHOICES
@@ -1550,6 +1734,58 @@ def reportes_dashboard(request):
         'tipos_ot': tipos_ot,
     }
     return render(request, 'flota/reportes_dashboard.html', context)
+
+
+# ==============================================================================
+#                      VISTAS DE GESTIÓN DE REGLAS DE ALERTA (CRUD)
+# ==============================================================================
+
+@login_required
+@user_passes_test(es_administrador)
+def regla_alerta_list(request):
+    reglas = ReglaAlerta.objects.all()
+    context = {'reglas': reglas}
+    return render(request, 'flota/regla_alerta_list.html', context)
+
+@login_required
+@user_passes_test(es_administrador)
+def regla_alerta_create(request):
+    if request.method == 'POST':
+        form = ReglaAlertaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Nueva regla de alerta creada con éxito.')
+            return redirect('regla_alerta_list')
+    else:
+        form = ReglaAlertaForm()
+    context = {'form': form}
+    return render(request, 'flota/regla_alerta_form.html', context)
+
+@login_required
+@user_passes_test(es_administrador)
+def regla_alerta_update(request, pk):
+    regla = get_object_or_404(ReglaAlerta, pk=pk)
+    if request.method == 'POST':
+        form = ReglaAlertaForm(request.POST, instance=regla)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Regla de alerta actualizada con éxito.')
+            return redirect('regla_alerta_list')
+    else:
+        form = ReglaAlertaForm(instance=regla)
+    context = {'form': form, 'regla': regla}
+    return render(request, 'flota/regla_alerta_form.html', context)
+
+@login_required
+@user_passes_test(es_administrador)
+def regla_alerta_delete(request, pk):
+    regla = get_object_or_404(ReglaAlerta, pk=pk)
+    if request.method == 'POST':
+        regla.delete()
+        messages.success(request, 'Regla de alerta eliminada con éxito.')
+        return redirect('regla_alerta_list')
+    context = {'regla': regla}
+    return render(request, 'flota/regla_alerta_confirm_delete.html', context)
 
 
 # ==============================================================================

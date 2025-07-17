@@ -33,6 +33,7 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
 SHARED_APPS = [
     'django_tenants',
     'tenants',  # Tu app para los modelos de tenant (Empresa, Domain)
+    'superadmin', # Panel de Super Administrador
 
     # Apps que REALMENTE son GLOBALES (NO se replican por tenant)
     'django.contrib.staticfiles', # Gestión de archivos estáticos (es global)
@@ -52,12 +53,19 @@ TENANT_APPS = [
     # Tus APPS ESPECÍFICAS de NEGOCIO (para cada tenant)
     'flota',
     'cuentas',
+
+    # Apps de Terceros para Tenants
+    'rest_framework',
+    'rest_framework.authtoken',
+    'drf_spectacular',
 ]
 
 # Esta línea es correcta y así es como django-tenants las usa internamente.
 # Asegura que INSTALLED_APPS contenga todas las apps sin duplicados.
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
 
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
 
 # --- MIDDLEWARE ---
 MIDDLEWARE = [
@@ -71,6 +79,15 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware', # Para protección clickjacking
     'whitenoise.middleware.WhiteNoiseMiddleware',           # <--- Para servir estáticos en producción (Hostinger)
 ]
+
+if DEBUG:
+    MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
+
+# --- DEBUG TOOLBAR SETTINGS ---
+if DEBUG:
+    INTERNAL_IPS = [
+        '127.0.0.1',
+    ]
 
 # --- URLS Y TENANTS ---
 
@@ -160,6 +177,71 @@ AUTHENTICATION_BACKENDS = [
 # EMAIL_HOST_USER = 'tu_correo@tudominio.com'
 # EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 # DEFAULT_FROM_EMAIL = 'no-reply@tudominio.com'
+
+# --- CACHING ---
+# Configuración de caché con Redis. La URL de conexión se obtiene de las variables de entorno.
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        }
+    }
+}
+
+# --- CELERY SETTINGS ---
+# Se utiliza la misma URL de Redis que para el caché, pero una base de datos diferente (e.g., /0)
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://127.0.0.1:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://127.0.0.1:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+
+# Configuración de Celery Beat (Tareas Periódicas)
+CELERY_BEAT_SCHEDULE = {
+    'revisar-neumaticos-diariamente': {
+        'task': 'flota.tasks.revisar_estado_neumaticos_task',
+        'schedule': 86400,  # Cada 24 horas
+    },
+    'evaluar-reglas-alerta-diariamente': {
+        'task': 'flota.tasks.evaluar_reglas_alerta_task',
+        'schedule': 86400, # Cada 24 horas
+    },
+}
+
+
+# --- DJANGO REST FRAMEWORK SETTINGS ---
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication', # Permite usar la API desde el frontend logueado
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated', # Requiere que el usuario esté logueado para cualquier acceso
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10,
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day',
+        'gps_webhook': '5000/day', # Un límite más alto para el webhook de GPS
+    }
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'TMS Gaval API',
+    'DESCRIPTION': 'API para la gestión de flotas y operaciones del TMS de Gaval.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False, # No servir el schema en la UI, solo en la ruta dedicada
+}
+
 
 # Opcional: Configuración de LOGGING para producción
 LOGGING = {

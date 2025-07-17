@@ -1,0 +1,90 @@
+{% extends "flota/base.html" %}
+
+{% block title %}Inventario de Neumáticos{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-wrap justify-between items-center gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-text-primary">Inventario de Neumáticos</h1>
+            <p class="text-text-secondary mt-1">Gestiona el ciclo de vida de todos los neumáticos de la flota.</p>
+        </div>
+        <a href="{% url 'neumatico_create' %}" class="btn-primary"><i class="fas fa-plus-circle mr-2"></i>Registrar Nuevo Neumático</a>
+    </div>
+
+    <div class="card-style">
+        <form method="get" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div class="form-group">
+                <label for="q" class="form-label">Buscar por DOT, Marca o Modelo</label>
+                <input type="text" name="q" id="q" value="{{ query }}" class="form-control" placeholder="Escribe para buscar...">
+            </div>
+            <div class="form-group">
+                <label for="estado" class="form-label">Filtrar por Estado</label>
+                <select name="estado" id="estado" class="form-control">
+                    <option value="">Todos los Estados</option>
+                    {% for value, name in estado_choices %}
+                    <option value="{{ value }}" {% if value == estado_filter %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="btn-primary w-full justify-center">Filtrar</button>
+                <a href="{% url 'neumatico_list' %}" class="btn-secondary w-full justify-center">Limpiar</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="card-style">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-input-border">
+                <thead class="bg-bg-secondary">
+                    <tr>
+                        <th scope="col" class="table-header">DOT</th>
+                        <th scope="col" class="table-header">Marca / Modelo</th>
+                        <th scope="col" class="table-header">Medida</th>
+                        <th scope="col" class="table-header">Estado</th>
+                        <th scope="col" class="table-header">Ubicación Actual</th>
+                        <th scope="col" class="table-header">Profundidad Surco (mm)</th>
+                        <th scope="col" class="table-header">KM Acumulados</th>
+                        <th scope="col" class="table-header">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-card-base-bg divide-y divide-input-border">
+                    {% for neumatico in neumaticos %}
+                    <tr>
+                        <td class="table-cell font-mono">{{ neumatico.dot }}</td>
+                        <td class="table-cell">{{ neumatico.marca }} {{ neumatico.modelo }}</td>
+                        <td class="table-cell">{{ neumatico.medida }}</td>
+                        <td class="table-cell">
+                            <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full
+                                {% if neumatico.estado == 'MONTADO' %} bg-blue-500/20 text-blue-300
+                                {% elif neumatico.estado == 'EN_BODEGA' %} bg-green-500/20 text-green-300
+                                {% elif neumatico.estado == 'EN_RECAUCHAJE' %} bg-yellow-500/20 text-yellow-300
+                                {% else %} bg-red-500/20 text-red-300 {% endif %}">
+                                {{ neumatico.get_estado_display }}
+                            </span>
+                        </td>
+                        <td class="table-cell">
+                            {% if neumatico.vehiculo_actual %}
+                                {{ neumatico.vehiculo_actual.numero_interno }} - {{ neumatico.posicion_actual }}
+                            {% else %}
+                                En Bodega
+                            {% endif %}
+                        </td>
+                        <td class="table-cell">{{ neumatico.profundidad_surco_actual_mm }} mm</td>
+                        <td class="table-cell">{{ neumatico.kilometraje_acumulado }} km</td>
+                        <td class="table-cell">
+                            <a href="{% url 'neumatico_detail' pk=neumatico.pk %}" class="btn-primary !text-xs !py-1 !px-2">Ver Detalle</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-10 text-text-secondary">No se encontraron neumáticos que coincidan con los filtros.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

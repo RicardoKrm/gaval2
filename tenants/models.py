@@ -2,10 +2,13 @@
 from django.db import models
 from django_tenants.models import TenantMixin, DomainMixin
 
+import uuid
+
 class Empresa(TenantMixin):
     nombre = models.CharField(max_length=100)
     razon_social = models.CharField(max_length=200, blank=True, null=True)
     creado_en = models.DateField(auto_now_add=True)
+    api_key = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     auto_create_schema = True
 
     def __str__(self):

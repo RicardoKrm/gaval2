@@ -1,0 +1,97 @@
+{% extends "flota/base.html" %}
+
+{% block title %}{% if neumatico %}Editar Neumático{% else %}Registrar Nuevo Neumático{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-text-primary">{% if neumatico %}Editar Neumático{% else %}Registrar Nuevo Neumático{% endif %}</h1>
+            {% if neumatico %}<p class="text-text-secondary font-mono">{{ neumatico.dot }}</p>{% endif %}
+        </div>
+        <a href="{% if neumatico %}{% url 'neumatico_detail' pk=neumatico.pk %}{% else %}{% url 'neumatico_list' %}{% endif %}" class="btn-secondary !text-sm">
+            <i class="fas fa-times mr-2"></i>Cancelar
+        </a>
+    </div>
+
+    <div class="card-style">
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label for="{{ form.dot.id_for_label }}" class="form-label">DOT</label>
+                    {{ form.dot }}
+                </div>
+                 <div class="form-group">
+                    <label for="{{ form.medida.id_for_label }}" class="form-label">Medida</label>
+                    {{ form.medida }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label for="{{ form.marca.id_for_label }}" class="form-label">Marca</label>
+                    {{ form.marca }}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.modelo.id_for_label }}" class="form-label">Modelo</label>
+                    {{ form.modelo }}
+                </div>
+            </div>
+
+            <hr class="border-input-border my-6">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label for="{{ form.fecha_compra.id_for_label }}" class="form-label">Fecha de Compra</label>
+                    {{ form.fecha_compra }}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.costo.id_for_label }}" class="form-label">Costo ($)</label>
+                    {{ form.costo }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div class="form-group">
+                    <label for="{{ form.estado.id_for_label }}" class="form-label">Estado Inicial</label>
+                    {{ form.estado }}
+                </div>
+            </div>
+
+             <hr class="border-input-border my-6">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                    <label for="{{ form.profundidad_surco_actual_mm.id_for_label }}" class="form-label">Profundidad de Surco Actual (mm)</label>
+                    {{ form.profundidad_surco_actual_mm }}
+                </div>
+                 <div class="form-group">
+                    <label for="{{ form.profundidad_surco_limite_mm.id_for_label }}" class="form-label">Límite de Desgaste (mm)</label>
+                    {{ form.profundidad_surco_limite_mm }}
+                </div>
+            </div>
+
+            {% if form.errors %}
+                <div class="p-4 rounded-md bg-red-500/20 text-red-300 text-sm">
+                    <p class="font-bold">Por favor, corrige los siguientes errores:</p>
+                    <ul class="list-disc pl-5 mt-2">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ field|title }}: {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <div class="pt-4">
+                <button type="submit" class="btn-primary w-full justify-center">
+                    <i class="fas fa-save mr-2"></i>Guardar Neumático
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

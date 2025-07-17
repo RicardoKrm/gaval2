@@ -7,7 +7,8 @@ from django.contrib.auth.models import Group
 from .models import (
     OrdenDeTrabajo, BitacoraDiaria, Vehiculo, Tarea, Insumo, DetalleInsumoOT,
     PautaMantenimiento, ModeloVehiculo, Repuesto, MovimientoStock, Personal,
-    Ruta, CondicionAmbiental, CargaCombustible # <-- ASEGÚRATE DE QUE ESTÉ AQUÍ
+    Ruta, CondicionAmbiental, CargaCombustible, Neumatico, HistorialMontaje, InspeccionNeumatico,
+    EvidenciaOT, ReglaAlerta, TipoFalla
 )
 
 class OrdenDeTrabajoForm(forms.ModelForm):
@@ -24,6 +25,7 @@ class OrdenDeTrabajoForm(forms.ModelForm):
             'tipo_falla',
             'observacion_inicial',
             'sintomas_reportados',
+            'neumatico_asociado',
         ]
         widgets = {
             'vehiculo': forms.Select(attrs={'class': 'form-control select2', 'style': 'width: 100%;'}),
@@ -36,6 +38,7 @@ class OrdenDeTrabajoForm(forms.ModelForm):
             'tipo_falla': forms.Select(attrs={'class': 'form-control select2', 'style': 'width: 100%;'}),
             'observacion_inicial': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Observaciones o motivo de la OT...'}),
             'sintomas_reportados': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Síntomas reportados por el conductor...'}),
+            'neumatico_asociado': forms.Select(attrs={'class': 'form-control select2', 'style': 'width: 100%;'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -44,7 +47,9 @@ class OrdenDeTrabajoForm(forms.ModelForm):
         self.fields['tipo_falla'].required = False
         self.fields['sintomas_reportados'].required = False
         self.fields['fecha_programada'].required = False
-        self.fields['prioridad'].required = False 
+        self.fields['prioridad'].required = False
+        self.fields['neumatico_asociado'].required = False
+        self.fields['neumatico_asociado'].queryset = Neumatico.objects.filter(estado__in=['MONTADO', 'EN_BODEGA'])
 
     def clean(self):
         cleaned_data = super().clean()
@@ -452,5 +457,84 @@ class CargaCombustibleForm(forms.ModelForm):
         self.fields['conductor'].queryset = User.objects.filter(
             is_active=True, 
             groups__name__in=['Mecánico', 'Supervisor', 'Administrador']
-        ).distinct()    
+        ).distinct()
 
+
+# ==============================================================================
+#                      FORMULARIOS DE GESTIÓN DE NEUMÁTICOS
+# ==============================================================================
+
+class NeumaticoForm(forms.ModelForm):
+    class Meta:
+        model = Neumatico
+        exclude = ['kilometraje_acumulado', 'vehiculo_actual', 'posicion_actual']
+        widgets = {
+            'dot': forms.TextInput(attrs={'class': 'form-control'}),
+            'marca': forms.TextInput(attrs={'class': 'form-control'}),
+            'modelo': forms.TextInput(attrs={'class': 'form-control'}),
+            'medida': forms.TextInput(attrs={'class': 'form-control'}),
+            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'fecha_compra': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'costo': forms.NumberInput(attrs={'class': 'form-control'}),
+            'profundidad_surco_actual_mm': forms.NumberInput(attrs={'class': 'form-control'}),
+            'profundidad_surco_limite_mm': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+class MontajeNeumaticoForm(forms.ModelForm):
+    class Meta:
+        model = HistorialMontaje
+        fields = ['vehiculo', 'posicion', 'kilometraje_vehiculo', 'orden_de_trabajo', 'notas']
+        widgets = {
+            'vehiculo': forms.Select(attrs={'class': 'form-control select2'}),
+            'posicion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: Delantera Izquierda'}),
+            'kilometraje_vehiculo': forms.NumberInput(attrs={'class': 'form-control'}),
+            'orden_de_trabajo': forms.Select(attrs={'class': 'form-control select2'}),
+            'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['orden_de_trabajo'].required = False
+
+class InspeccionNeumaticoForm(forms.ModelForm):
+    class Meta:
+        model = InspeccionNeumatico
+        fields = ['presion_psi', 'profundidad_surco_mm', 'notas']
+        widgets = {
+            'presion_psi': forms.NumberInput(attrs={'class': 'form-control'}),
+            'profundidad_surco_mm': forms.NumberInput(attrs={'class': 'form-control'}),
+            'notas': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+class EvidenciaOTForm(forms.ModelForm):
+    class Meta:
+        model = EvidenciaOT
+        fields = ['archivo', 'descripcion']
+        widgets = {
+            'archivo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Descripción breve de la evidencia...'}),
+        }
+
+class ReglaAlertaForm(forms.ModelForm):
+    class Meta:
+        model = ReglaAlerta
+        fields = '__all__'
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'metrica': forms.Select(attrs={'class': 'form-control'}),
+            'operador': forms.Select(attrs={'class': 'form-control'}),
+            'valor_umbral': forms.NumberInput(attrs={'class': 'form-control'}),
+            'modelo_vehiculo': forms.SelectMultiple(attrs={'class': 'form-control select2'}),
+            'tipo_falla_asociada': forms.Select(attrs={'class': 'form-control select2'}),
+            'periodo_dias': forms.NumberInput(attrs={'class': 'form-control'}),
+            'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        help_texts = {
+            'modelo_vehiculo': 'Si no seleccionas ninguno, la regla se aplicará a todos los modelos.',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['tipo_falla_asociada'].queryset = TipoFalla.objects.all()
+        self.fields['modelo_vehiculo'].queryset = ModeloVehiculo.objects.all()

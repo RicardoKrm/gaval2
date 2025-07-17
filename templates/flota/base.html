@@ -10,6 +10,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="{% static 'manifest.json' %}">
+    <meta name="theme-color" content="#00E5FF">
+
     <style>
         /* Variables de Color (sin cambios) */
         :root {
@@ -208,6 +212,7 @@
                                         <a href="{% url 'reportes_dashboard' %}" class="nav-dropdown-item">Reportes</a>
                                         <a href="{% url 'carga_masiva' %}" class="nav-dropdown-item">Carga Masiva</a>
                                         <a href="{% url 'lista_usuarios' %}" class="nav-dropdown-item">Administración Usuarios</a>
+                                        <a href="{% url 'regla_alerta_list' %}" class="nav-dropdown-item">Gestión de Alertas</a>
                                     </div>
                                 </div>
                             {% endif %}
@@ -327,6 +332,19 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     
     <script>
+        // Registro del Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{% static 'serviceworker.js' %}")
+                    .then(registration => {
+                        console.log('Service Worker registrado con éxito:', registration);
+                    })
+                    .catch(error => {
+                        console.log('Error en el registro del Service Worker:', error);
+                    });
+            });
+        }
+
         $(document).ready(function() {
             // Inicializar Select2
             $('.select2').select2();
