@@ -106,22 +106,25 @@ Estos comandos prepararán la base de datos de Django y crearán tu primer clien
     ```
 
 2.  **Crea el Primer Tenant:**
-    Vamos a crear una empresa de ejemplo llamada "Pulser".
+    Este comando crea la empresa y su esquema en la base de datos.
     ```bash
-    python manage.py create_tenant --schema_name=pulser --domain_url=pulser.localhost --tenant_name="Empresa Pulser"
+    python manage.py create_tenant --schema_name=pulser --nombre="Empresa Pulser"
     ```
-    *   `--schema_name`: Identificador técnico en la BD.
-    *   `--domain_url`: El subdominio que usarás para acceder (`pulser.localhost` para desarrollo).
-    *   `--tenant_name`: El nombre comercial de la empresa.
 
-3.  **Crea un Superusuario para el Tenant:**
+3.  **Asocia un Dominio al Tenant:**
+    Este comando le dice a la aplicación cómo acceder al tenant que acabas de crear.
+    ```bash
+    python manage.py create_domain --schema_name=pulser --domain=pulser.localhost --is_primary
+    ```
+
+4.  **Crea un Superusuario para el Tenant:**
     Este será el primer usuario administrador para la "Empresa Pulser".
     ```bash
     python manage.py create_tenant_superuser --schema_name=pulser --username=admin_pulser --email=admin@pulser.com
     ```
     El sistema te pedirá que introduzcas y confirmes una contraseña.
 
-4.  **Crea un Superusuario para el Sistema (Dueño del Proyecto):**
+6.  **Crea un Superusuario para el Sistema (Dueño del Proyecto):**
     Este usuario es para el **Panel de Super Administrador** y no pertenece a ningún tenant.
     ```bash
     python manage.py createsuperuser

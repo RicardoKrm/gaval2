@@ -75,3 +75,58 @@ def calcular_frecuencia_falla_para_vehiculos(vehiculos, tipo_falla, periodo_dias
         resultados[vehiculo.id] = conteo_fallas
 
     return resultados
+
+def calcular_mtbf_para_vehiculos(vehiculos, periodo_dias):
+    """
+    Calcula el Tiempo Medio Entre Fallas (MTBF) en horas.
+    """
+    fecha_inicio = timezone.now() - timedelta(days=periodo_dias)
+    resultados = {}
+
+    for vehiculo in vehiculos:
+        ots_correctivas = OrdenDeTrabajo.objects.filter(
+            vehiculo=vehiculo,
+            tipo='CORRECTIVA',
+            fecha_cierre__gte=fecha_inicio
+        ).order_by('fecha_cierre')
+
+        if ots_correctivas.count() > 1:
+            total_tiempo_operativo = timedelta(0)
+            for i in range(len(ots_correctivas) - 1):
+                tiempo_entre_fallas = ots_correctivas[i+1].fecha_creacion - ots_correctivas[i].fecha_cierre
+                total_tiempo_operativo += tiempo_entre_fallas
+
+            mtbf_en_horas = (total_tiempo_operativo.total_seconds() / 3600) / (ots_correctivas.count() - 1)
+            resultados[vehiculo.id] = mtbf_en_horas
+        else:
+            # No se puede calcular MTBF con 0 o 1 falla.
+            resultados[vehiculo.id] = None
+
+    return resultados
+
+def calcular_mttr_para_vehiculos(vehiculos, periodo_dias):
+    """
+    Calcula el Tiempo Medio de Reparación (MTTR) en horas.
+    """
+    fecha_inicio = timezone.now() - timedelta(days=periodo_dias)
+    resultados = {}
+
+    for vehiculo in vehiculos:
+        ots_finalizadas = OrdenDeTrabajo.objects.filter(
+            vehiculo=vehiculo,
+            estado='FINALIZADA',
+            tipo='CORRECTIVA',
+            fecha_cierre__gte=fecha_inicio,
+            tfs_minutos__gt=0
+        )
+
+        tiempo_total_reparacion_minutos = ots_finalizadas.aggregate(total=Sum('tfs_minutos'))['total'] or 0
+        num_reparaciones = ots_finalizadas.count()
+
+        if num_reparaciones > 0:
+            mttr_en_horas = (tiempo_total_reparacion_minutos / num_reparaciones) / 60
+            resultados[vehiculo.id] = mttr_en_horas
+        else:
+            resultados[vehiculo.id] = None
+
+    return resultados
